@@ -1,11 +1,26 @@
+import { Theme } from "@radix-ui/themes";
+import Home from "./pages/Home";
+import Signin from "./pages/account/Signin";
+
 function App() {
   return (
-    <div className="p-10">
-      <p className="inter-light">light</p>
-      <p className="">normal</p>
-      <p className="inter-medium">medium</p>
-      <p className="inter-bold">bold</p>
-    </div>
+    <Theme
+      accentColor="iris"
+      panelBackground="translucent"
+      grayColor="gray"
+      appearance="light"
+    >
+      <div className="p-10 poppins-regular">
+        <p className="poppins-light">light</p>
+        <p className="poppins-regular">normal</p>
+        <p className="poppins-medium">medium</p>
+        <p className="poppins-bold">bold</p>
+      </div>
+      <div className="flex justify-start gap-2 overflow-x-auto p-3 poppins-regular">
+        <Home />
+        <Signin />
+      </div>
+    </Theme>
   );
 }
 
