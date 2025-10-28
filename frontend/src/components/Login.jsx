@@ -62,7 +62,7 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   return (
-    <div className="p-10 w-full grid items-center">
+    <div className="p-10 w-full h-dvh grid items-center">
       <header className="flex items-center justify-center flex-col gap-2">
         <p className="text-4xl poppins-medium">Welcome to</p>
         <h1
