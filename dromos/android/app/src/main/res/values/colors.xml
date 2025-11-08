@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="launch_background_color">#6358dc</color> <!-- This is red, change it to your desired color -->
+</resources>
