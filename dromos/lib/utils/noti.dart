@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
+import 'package:dromos/utils/_colors.dart';
 class NotiService {
   final notificationPlugin = FlutterLocalNotificationsPlugin();
 
@@ -26,8 +26,10 @@ class NotiService {
       'channel_id',
       'Page Changes',
       channelDescription: 'channel_description',
-      importance: Importance.max,
-      priority: Priority.high,
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+      color: ConstColor.primaryPurple,
+      colorized: true,
     );
 
     return const NotificationDetails(android: androidDetails);

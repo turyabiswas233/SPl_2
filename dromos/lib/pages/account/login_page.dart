@@ -1,3 +1,6 @@
+import 'package:dromos/components/_customInput.dart';
+import 'package:dromos/pages/account/signup_page.dart';
+import 'package:dromos/pages/home/home_page.dart';
 import 'package:dromos/utils/_colors.dart';
 import 'package:dromos/utils/_fonts.dart';
 import 'package:flutter/material.dart';
@@ -21,44 +24,64 @@ const String facebookSvgData = '''
 ''';
 // --- End SVG Icon Data ---
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<LoginPage> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginPage> {
   bool _rememberMe = false;
-  final Color _primaryColor = ConstColor.primary_color; // A nice purple
-  final Color _secondaryColor = ConstColor.primary_purple;
-  final Color _bgCol = ConstColor.primary_bg;
+  ConstColor cc = ConstColor();
+  late Map<int, Color> light = cc.light();
+  late Map<int, Color> dark = cc.dark();
 
   @override
   Widget build(BuildContext context) {
+    late final Color? primaryColor =
+        MediaQuery.of(context).platformBrightness == Brightness.light
+        ? light[1]
+        : dark[1];
+    late final Color? bgCol =
+        MediaQuery.of(context).platformBrightness == Brightness.light
+        ? light[2]
+        : dark[2];
+    late final Color secondaryColor = ConstColor.primaryPurple;
+
     return Scaffold(
       // The dark background from the image
-      backgroundColor: _bgCol,
+      backgroundColor: bgCol,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Container(
-            padding: const EdgeInsets.all(32.0),
-            decoration: BoxDecoration(color: Colors.white),
+            padding: const EdgeInsets.only(
+              top: 32,
+              bottom: 32,
+              left: 10,
+              right: 10,
+            ),
+            decoration: BoxDecoration(color: bgCol),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                // Header: "Welcome to"
-                const Text(
-                  "Welcome to",
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w500, // poppins-medium
+                GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Icon(
+                    Icons.arrow_back_ios_new,
+                    color: primaryColor,
+                    size: 24,
                   ),
                 ),
-                // Header: "Dromos"
+                // Header
+                Text(
+                  "Welcome to",
+                  style: ConstFonts.normal(size: 32, color: primaryColor),
+                ),
                 Text(
                   "Dromos",
-                  style: ConstFonts.bold(color: _secondaryColor, size: 48),
+                  style: ConstFonts.bold(color: secondaryColor, size: 48),
                 ),
                 const SizedBox(height: 32.0),
 
@@ -68,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   svgData: googleSvgData,
                   onTap: () {
                     // Handle Google login
-                    // show alrt to login with google
+                    // show alwrt to login with google
                     showDialog(
                       context: context,
                       builder: (BuildContext context) {
@@ -77,13 +100,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             "Login-BTN - Google",
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: _primaryColor,
+                              color: primaryColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          backgroundColor: _bgCol,
+                          backgroundColor: bgCol,
                           icon: Icon(Icons.info_outline),
-                          iconColor: _secondaryColor,
+                          iconColor: secondaryColor,
                           actions: [
                             TextButton(
                               onPressed: () {
@@ -116,13 +139,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           title: Text(
                             "Login-BTN - FB",
                             style: TextStyle(
-                              color: _primaryColor,
+                              color: primaryColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           icon: Icon(Icons.info_outline),
-                          iconColor: _secondaryColor,
-                          backgroundColor: _bgCol,
+                          iconColor: secondaryColor,
+                          backgroundColor: bgCol,
                           actions: [
                             TextButton(
                               onPressed: () {
@@ -149,17 +172,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 24.0),
 
                 // Email and Password Fields
-                _CustomTextField(
+                CustomInput(
                   title: "Email",
                   hint: "example@gmail.com",
                   icon: Icons.email_rounded,
                   controller: TextEditingController(),
                 ),
                 const SizedBox(height: 16.0),
-                _CustomTextField(
+                CustomInput(
                   title: "Password",
                   hint: "**********",
-                  icon: Icons.lock_outline,
+                  icon: Icons.key_sharp,
                   controller: TextEditingController(),
                   isPassword: true,
                 ),
@@ -169,7 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   children: [
                     Checkbox(
-                      activeColor: _secondaryColor,
+                      activeColor: secondaryColor,
                       value: _rememberMe,
                       onChanged: (bool? value) {
                         setState(() {
@@ -177,7 +200,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         });
                       },
                     ),
-                    const Text("Remember me"),
+                    Text(
+                      "Remember me",
+                      style: ConstFonts.normal(color: primaryColor),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 20.0),
@@ -191,8 +217,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       debugPrint("Remember me: $_rememberMe");
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _secondaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      backgroundColor: secondaryColor,
+                      padding: const EdgeInsets.symmetric(vertical: 14.0),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12.0),
                       ),
@@ -207,27 +233,43 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                // Forgot Password?
-                TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    "Forgot Password?",
-                    style: TextStyle(color: _secondaryColor),
-                  ),
+                SizedBox(height: 20),
+                Row(
+                  children: [
+                    // Forgot Password?
+                    GestureDetector(
+                      onTap: () {},
+                      child: Text(
+                        "Forgot Password?",
+                        style: TextStyle(color: secondaryColor),
+                      ),
+                    ),
+                  ],
                 ),
-
-                const SizedBox(height: 24),
+                SizedBox(height: 5),
 
                 // Don't have an account? Register
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  spacing: 5,
                   children: [
-                    const Text("Don't have an account?"),
-                    TextButton(
-                      onPressed: () {},
+                    Text(
+                      "Don't have an account?",
+                      style: TextStyle(color: primaryColor),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) {
+                              return const SignupPage();
+                            },
+                          ),
+                        );
+                      },
                       child: Text(
                         "Register",
-                        style: TextStyle(color: _secondaryColor),
+                        style: TextStyle(color: secondaryColor),
                       ),
                     ),
                   ],
@@ -273,7 +315,7 @@ class _SocialLoginButton extends StatelessWidget {
               Text(
                 text,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -299,85 +341,6 @@ class _OrDivider extends StatelessWidget {
           child: Text("OR", style: TextStyle(color: Colors.grey[600])),
         ),
         const Expanded(child: Divider(color: Colors.grey)),
-      ],
-    );
-  }
-}
-
-// Helper Widget for Text Fields (like your Input)
-class _CustomTextField extends StatefulWidget {
-  final String title;
-  final String hint;
-  final IconData icon;
-  final TextEditingController controller;
-  final bool isPassword;
-
-  const _CustomTextField({
-    required this.title,
-    required this.hint,
-    required this.icon,
-    required this.controller,
-    this.isPassword = false,
-  });
-
-  @override
-  State<_CustomTextField> createState() => _CustomTextFieldState();
-}
-
-class _CustomTextFieldState extends State<_CustomTextField> {
-  bool _obscureText = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Title (e.g., "Email", "Password")
-        Text(
-          widget.title,
-          style: ConstFonts.thin(color: ConstColor.primary_color),
-        ),
-        const SizedBox(height: 8.0),
-        // Text field in a card for shadow
-        Card(
-          elevation: 4.0,
-          color: Colors.white,
-          shadowColor: Colors.grey.withAlpha(80),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8.0),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10.0),
-            child: TextFormField(
-              controller: widget.controller,
-              obscureText: widget.isPassword ? _obscureText : false,
-              decoration: InputDecoration(
-                // Hint/Placeholder
-                hintText: widget.hint,
-                // Remove the default border
-                border: InputBorder.none,
-                // Left Icon
-                prefixIcon: Icon(widget.icon, color: Colors.black87, size: 36),
-                // Right "visibility" icon for password
-                suffixIcon: widget.isPassword
-                    ? IconButton(
-                        icon: Icon(
-                          _obscureText
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: Colors.black87,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureText = !_obscureText;
-                          });
-                        },
-                      )
-                    : null,
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }
