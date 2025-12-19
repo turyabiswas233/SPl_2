@@ -1,8 +1,8 @@
 import 'package:dromos/pages/account/login_page.dart';
 import 'package:dromos/pages/account/signup_page.dart';
-import 'package:dromos/utils/_fonts.dart';
+import 'package:dromos/utils/fonts.dart';
 import 'package:flutter/material.dart';
-import 'package:dromos/utils/_colors.dart';
+import 'package:dromos/utils/colors.dart';
 
 class User {
   final String name;
@@ -35,19 +35,10 @@ class _HomeScreen extends HomeScreen {
 
   _HomeScreen(this.context);
 
-  ConstColor cc = ConstColor();
-  late Map<int, Color> light = cc.light();
-  late Map<int, Color> dark = cc.dark();
+  Color pc = ConstColor.primaryColor;
+  Color pbc = ConstColor.primaryBg;
+  Color secondaryColor = ConstColor.primaryPurple;
 
-  late final Color? primaryColor =
-      MediaQuery.of(context).platformBrightness == Brightness.light
-      ? light[1]
-      : dark[1];
-  late final Color? bgCol =
-      MediaQuery.of(context).platformBrightness == Brightness.light
-      ? light[2]
-      : dark[2];
-  late final Color secondaryColor = ConstColor.primaryPurple;
 
   late final List<SizedBox> buttons = [
     SizedBox(
@@ -120,7 +111,7 @@ class _HomeScreen extends HomeScreen {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgCol,
+      backgroundColor: pbc,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Center(
@@ -138,7 +129,7 @@ class _HomeScreen extends HomeScreen {
                     Text(
                       "Smart Simple Sustainable",
                       textAlign: TextAlign.center,
-                      style: ConstFonts.normal(size: 24, color: primaryColor),
+                      style: ConstFonts.normal(size: 24, color: pc),
                     ),
                   ],
                 ),

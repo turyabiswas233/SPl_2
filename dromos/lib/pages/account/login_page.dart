@@ -1,13 +1,15 @@
-import 'package:dromos/components/_customInput.dart';
+import 'package:dromos/components/custom_input.dart';
 import 'package:dromos/pages/account/signup_page.dart';
-import 'package:dromos/pages/home/home_page.dart';
-import 'package:dromos/utils/_colors.dart';
-import 'package:dromos/utils/_fonts.dart';
+
+// Import the new MainScreen
+import 'package:dromos/screens/main_screen.dart';
+import 'package:dromos/utils/colors.dart';
+import 'package:dromos/utils/fonts.dart';
+import 'package:dromos/utils/info.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 // --- SVG Icon Data ---
-// Extracted from your React component
 const String googleSvgData = '''
 <svg width="36" height="32" viewBox="0 0 36 32" fill="none" xmlns="http://www.w3.org/2000/svg">
   <path d="M7.78827 19.2871L6.56502 23.4344L2.09406 23.5203C0.757893 21.2696 0 18.6944 0 15.9579C0 13.3117 0.708612 10.8163 1.96467 8.61902H1.96564L5.94605 9.28177L7.68971 12.875C7.32477 13.8413 7.12586 14.8786 7.12586 15.9579C7.12599 17.1293 7.35963 18.2517 7.78827 19.2871Z" fill="#FBBB00"/>
@@ -32,56 +34,192 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginPage> {
-  bool _rememberMe = false;
-  ConstColor cc = ConstColor();
-  late Map<int, Color> light = cc.light();
-  late Map<int, Color> dark = cc.dark();
+  // Add controllers to get the text from the input fields
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  bool rememberMe = false;
+
+  Color pc = ConstColor.primaryColor;
+  Color pbc = ConstColor.primaryBg;
+  Color accentColor = ConstColor.primaryPurple;
+
+  // --- LOGIN LOGIC FUNCTION ---
+  void _handleLogin(BuildContext context) {
+    // For now, this is a "demo" login. We are not validating credentials.
+    // In a real app, you would validate _emailController.text and _passwordController.text
+    // against a database or authentication service here.
+
+    debugPrint("Attempting login...");
+    debugPrint("Email: ${_emailController.text}");
+    debugPrint("Email: ${_passwordController.text}");
+    debugPrint("Remember me: $rememberMe");
+    const String email = ConstInfo.email;
+    const String password = ConstInfo.password;
+
+    if (email == _emailController.text &&
+        password == _passwordController.text) {
+      debugPrint("Login Successful");
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text(
+              "Login Successful",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: pc, fontWeight: FontWeight.bold),
+            ),
+            content: Text("Welcome, ${ConstInfo.userName}"),
+            backgroundColor: Colors.white,
+            icon: Icon(Icons.error),
+            iconColor: accentColor,
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text(
+                  "Ok",
+                  style: ConstFonts.light(
+                    color: Colors.green.shade700,
+                    size: 14,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+      // settimeout
+      Future.delayed(const Duration(seconds: 2), () {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const MainScreen()),
+          (Route<dynamic> route) =>
+              false, // This predicate removes all previous routes
+        );
+      });
+    } else if (_emailController.text.isEmpty ||
+        _passwordController.text.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            title: Text(
+              "Login Attempt Failed",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: pc, fontWeight: FontWeight.bold),
+            ),
+            content: Text(
+              "Fill up both email and password to login the system",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  debugPrint("Missing fields");
+                  Navigator.of(context).pop();
+                },
+                child: Text(
+                  "Got it",
+                  style: ConstFonts.light(
+                    color: Colors.green.shade700,
+                    size: 14,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      debugPrint("Login Failed");
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text(
+              "Login Attempt Failed",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: pc, fontWeight: FontWeight.bold),
+            ),
+            content: Text("Invalid Credentials. Please try again."),
+            backgroundColor: pbc,
+            icon: Icon(Icons.error),
+            iconColor: accentColor,
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text(
+                  "Close",
+                  style: ConstFonts.light(color: Colors.red, size: 14),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+    return;
+  }
+
+  @override
+  void dispose() {
+    // Dispose controllers to free up resources
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    late final Color? primaryColor =
-        MediaQuery.of(context).platformBrightness == Brightness.light
-        ? light[1]
-        : dark[1];
-    late final Color? bgCol =
-        MediaQuery.of(context).platformBrightness == Brightness.light
-        ? light[2]
-        : dark[2];
-    late final Color secondaryColor = ConstColor.primaryPurple;
-
     return Scaffold(
+      // extendBodyBehindAppBar: true,
       // The dark background from the image
-      backgroundColor: bgCol,
+      backgroundColor: pbc,
+      appBar: AppBar(
+        title: const Text(
+          "Dromos - Login",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        backgroundColor: Colors.transparent,
+        bottomOpacity: 0,
+        elevation: 0,
+        leading: BackButton(
+          color: accentColor,
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Container(
-            padding: const EdgeInsets.only(
-              top: 32,
-              bottom: 32,
-              left: 10,
-              right: 10,
-            ),
-            decoration: BoxDecoration(color: bgCol),
+            padding: const EdgeInsets.only(bottom: 32, left: 10, right: 10),
+            decoration: BoxDecoration(color: pbc),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                GestureDetector(
-                  onTap: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: Icon(
-                    Icons.arrow_back_ios_new,
-                    color: primaryColor,
-                    size: 24,
-                  ),
-                ),
                 // Header
-                Text(
-                  "Welcome to",
-                  style: ConstFonts.normal(size: 32, color: primaryColor),
-                ),
-                Text(
-                  "Dromos",
-                  style: ConstFonts.bold(color: secondaryColor, size: 48),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.only(top: 12.0, bottom: 12.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.max,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Welcome to",
+                        style: ConstFonts.normal(size: 32, color: pc),
+                      ),
+                      Text(
+                        "Dromos",
+                        style: ConstFonts.bold(color: accentColor, size: 48),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 32.0),
 
@@ -90,8 +228,6 @@ class _LoginScreenState extends State<LoginPage> {
                   text: "Login with Google",
                   svgData: googleSvgData,
                   onTap: () {
-                    // Handle Google login
-                    // show alwrt to login with google
                     showDialog(
                       context: context,
                       builder: (BuildContext context) {
@@ -100,13 +236,13 @@ class _LoginScreenState extends State<LoginPage> {
                             "Login-BTN - Google",
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: primaryColor,
+                              color: pc,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          backgroundColor: bgCol,
+                          backgroundColor: pbc,
                           icon: Icon(Icons.info_outline),
-                          iconColor: secondaryColor,
+                          iconColor: accentColor,
                           actions: [
                             TextButton(
                               onPressed: () {
@@ -131,7 +267,6 @@ class _LoginScreenState extends State<LoginPage> {
                   text: "Login with Facebook",
                   svgData: facebookSvgData,
                   onTap: () {
-                    // Handle Facebook login
                     showDialog(
                       context: context,
                       builder: (BuildContext context) {
@@ -139,13 +274,13 @@ class _LoginScreenState extends State<LoginPage> {
                           title: Text(
                             "Login-BTN - FB",
                             style: TextStyle(
-                              color: primaryColor,
+                              color: pc,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           icon: Icon(Icons.info_outline),
-                          iconColor: secondaryColor,
-                          backgroundColor: bgCol,
+                          iconColor: accentColor,
+                          backgroundColor: pbc,
                           actions: [
                             TextButton(
                               onPressed: () {
@@ -172,38 +307,38 @@ class _LoginScreenState extends State<LoginPage> {
                 const SizedBox(height: 24.0),
 
                 // Email and Password Fields
+                // Assign the controllers to the CustomInput widgets
                 CustomInput(
                   title: "Email",
                   hint: "example@gmail.com",
                   icon: Icons.email_rounded,
-                  controller: TextEditingController(),
+                  controller: _emailController, // Assign controller
                 ),
                 const SizedBox(height: 16.0),
                 CustomInput(
                   title: "Password",
                   hint: "**********",
                   icon: Icons.key_sharp,
-                  controller: TextEditingController(),
+                  controller: _passwordController,
+                  // Assign controller
                   isPassword: true,
                 ),
                 const SizedBox(height: 16.0),
+                // ... (Your existing code for Remember me, etc.)
 
                 // Remember Me Checkbox
                 Row(
                   children: [
                     Checkbox(
-                      activeColor: secondaryColor,
-                      value: _rememberMe,
+                      activeColor: accentColor,
+                      value: rememberMe,
                       onChanged: (bool? value) {
                         setState(() {
-                          _rememberMe = value ?? false;
+                          rememberMe = value ?? false;
                         });
                       },
                     ),
-                    Text(
-                      "Remember me",
-                      style: ConstFonts.normal(color: primaryColor),
-                    ),
+                    Text("Remember me", style: ConstFonts.normal(color: pc)),
                   ],
                 ),
                 const SizedBox(height: 20.0),
@@ -212,49 +347,56 @@ class _LoginScreenState extends State<LoginPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      // Handle Login
-                      debugPrint("Remember me: $_rememberMe");
-                    },
+                    // Call the _handleLogin function when pressed
+                    onPressed: () => _handleLogin(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: secondaryColor,
+                      backgroundColor: accentColor,
                       padding: const EdgeInsets.symmetric(vertical: 14.0),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12.0),
                       ),
                     ),
-                    child: const Text(
-                      "Login",
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600, // poppins-semibold
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      spacing: 10,
+                      children: [
+                        const Text(
+                          "Login",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600, // poppins-semibold
+                          ),
+                        ),
+                        Icon(Icons.login, color: pbc),
+                      ],
                     ),
                   ),
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     // Forgot Password?
                     GestureDetector(
                       onTap: () {},
                       child: Text(
                         "Forgot Password?",
-                        style: TextStyle(color: secondaryColor),
+                        style: TextStyle(color: accentColor),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 5),
 
                 // Don't have an account? Register
                 Row(
-                  spacing: 5,
+                  // Use mainAxisAlignment to center the content
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      "Don't have an account?",
-                      style: TextStyle(color: primaryColor),
+                      "Don't have an account? ",
+                      style: TextStyle(color: pc),
                     ),
                     GestureDetector(
                       onTap: () {
@@ -269,7 +411,10 @@ class _LoginScreenState extends State<LoginPage> {
                       },
                       child: Text(
                         "Register",
-                        style: TextStyle(color: secondaryColor),
+                        style: TextStyle(
+                          color: accentColor,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -283,6 +428,7 @@ class _LoginScreenState extends State<LoginPage> {
   }
 }
 
+// ... (Your helper widgets _SocialLoginButton and _OrDivider remain the same)
 // Helper Widget for Social Login Buttons (like your GoogleLoginBtn)
 class _SocialLoginButton extends StatelessWidget {
   final String text;

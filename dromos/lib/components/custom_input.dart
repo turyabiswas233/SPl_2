@@ -1,7 +1,7 @@
 import 'dart:math';
 
-import 'package:dromos/utils/_colors.dart';
-import 'package:dromos/utils/_fonts.dart';
+import 'package:dromos/utils/colors.dart';
+import 'package:dromos/utils/fonts.dart';
 import 'package:flutter/material.dart';
 
 class CustomInput extends StatefulWidget {
@@ -26,19 +26,10 @@ class CustomInput extends StatefulWidget {
 
 class _CustomTextFieldState extends State<CustomInput> {
   bool _obscureText = true;
-  ConstColor cc = ConstColor();
-  late Map<int, Color> light = cc.light();
-  late Map<int, Color> dark = cc.dark();
 
-  late final Color? primaryColor =
-      MediaQuery.of(context).platformBrightness == Brightness.light
-      ? light[1]
-      : dark[1];
-  late final Color? bgCol =
-      MediaQuery.of(context).platformBrightness == Brightness.light
-      ? light[2]
-      : dark[2];
-  late final Color secondaryColor = ConstColor.primaryPurple;
+  Color pc = ConstColor.primaryColor;
+  Color pbc = ConstColor.primaryBg;
+  Color secondaryColor = ConstColor.primaryPurple;
 
   @override
   Widget build(BuildContext context) {
@@ -48,13 +39,13 @@ class _CustomTextFieldState extends State<CustomInput> {
         // Title (e.g., "Email", "Password")
         Text(
           widget.title,
-          style: ConstFonts.normal(color: primaryColor, size: 12),
+          style: ConstFonts.normal(color: pc, size: 12),
         ),
         const SizedBox(height: 8.0),
         // Text field in a card for shadow
         Card(
           elevation: 4.0,
-          color: Colors.white,
+          color: pbc,
           shadowColor: Colors.grey.withAlpha(80),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8.0),

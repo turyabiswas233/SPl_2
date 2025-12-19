@@ -1,14 +1,25 @@
 import 'dart:io';
 
 import 'package:dromos/pages/home/home_page.dart';
-import 'package:dromos/utils/_colors.dart';
+import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/noti.dart';
+import 'package:dromos/utils/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
+
+  Color pc = ConstColor.primaryColor;
+  Color pbc = ConstColor.primaryBg;
+  Color accentColor = ConstColor.primaryPurple;
+
+  SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: accentColor.withAlpha(50),
+        systemNavigationBarColor: accentColor.withAlpha(200)
+      )
+  );
   WidgetsFlutterBinding.ensureInitialized();
   await _requestPermissions();
   NotiService().initNoti();
@@ -37,50 +48,21 @@ Future<void> _requestPermissions() async {
       debugPrint('No permission for notification is granted');
     }
   } else {
-    // may be something error
+    // may be something erro
     debugPrint("something error in access");
   }
 }
 
 class MyApp extends StatelessWidget {
-  MyApp({super.key});
-
-  ConstColor cc = ConstColor();
-  late Map<int, Color> light = cc.light();
-  late Map<int, Color> dark = cc.dark();
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    late final Color? primaryColor =
-        MediaQuery.of(context).platformBrightness == Brightness.light
-        ? light[1]
-        : dark[1];
-    late final Color? bgCol =
-        MediaQuery.of(context).platformBrightness == Brightness.light
-        ? light[2]
-        : dark[2];
-    late final Color secondaryColor = ConstColor.primaryPurple;
-    late SystemUiOverlayStyle sos =
-        MediaQuery.of(context).platformBrightness == Brightness.dark
-        ? SystemUiOverlayStyle.light
-        : SystemUiOverlayStyle.dark;
-
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: sos,
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Dromos - Enjoy the ride',
-        theme: ThemeData(
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-          useSystemColors: true,
-          fontFamily: GoogleFonts.poppins().fontFamily,
-          fontFamilyFallback: GoogleFonts.poppins().fontFamilyFallback,
-          floatingActionButtonTheme: FloatingActionButtonThemeData(
-            backgroundColor: secondaryColor,
-          ),
-        ),
-        home: const HomeScreen(),
-      ),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Dromos - Enjoy the ride',
+      theme: appTheme(),
+      home: const HomeScreen(),
     );
   }
 }
