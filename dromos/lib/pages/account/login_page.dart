@@ -92,11 +92,13 @@ class _LoginScreenState extends State<LoginPage> {
       );
       // settimeout
       Future.delayed(const Duration(seconds: 2), () {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const MainScreen()),
-          (Route<dynamic> route) =>
-              false, // This predicate removes all previous routes
-        );
+        if (context.mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const MainScreen()),
+            (Route<dynamic> route) =>
+                false, // This predicate removes all previous routes
+          );
+        }
       });
     } else if (_emailController.text.isEmpty ||
         _passwordController.text.isEmpty) {
@@ -224,87 +226,87 @@ class _LoginScreenState extends State<LoginPage> {
                 const SizedBox(height: 32.0),
 
                 // Google and Facebook Buttons
-                _SocialLoginButton(
-                  text: "Login with Google",
-                  svgData: googleSvgData,
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          title: Text(
-                            "Login-BTN - Google",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: pc,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          backgroundColor: pbc,
-                          icon: Icon(Icons.info_outline),
-                          iconColor: accentColor,
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
-                              child: Text(
-                                "Close",
-                                style: ConstFonts.light(
-                                  color: Colors.red,
-                                  size: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                ),
-                const SizedBox(height: 16.0),
-                _SocialLoginButton(
-                  text: "Login with Facebook",
-                  svgData: facebookSvgData,
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          title: Text(
-                            "Login-BTN - FB",
-                            style: TextStyle(
-                              color: pc,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          icon: Icon(Icons.info_outline),
-                          iconColor: accentColor,
-                          backgroundColor: pbc,
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
-                              child: Text(
-                                "Close",
-                                style: ConstFonts.light(
-                                  color: Colors.red,
-                                  size: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                ),
-                const SizedBox(height: 24.0),
-
-                // "OR" Divider
-                const _OrDivider(),
-                const SizedBox(height: 24.0),
+                // _SocialLoginButton(
+                //   text: "Login with Google",
+                //   svgData: googleSvgData,
+                //   onTap: () {
+                //     showDialog(
+                //       context: context,
+                //       builder: (BuildContext context) {
+                //         return AlertDialog(
+                //           title: Text(
+                //             "Login-BTN - Google",
+                //             textAlign: TextAlign.center,
+                //             style: TextStyle(
+                //               color: pc,
+                //               fontWeight: FontWeight.bold,
+                //             ),
+                //           ),
+                //           backgroundColor: pbc,
+                //           icon: Icon(Icons.info_outline),
+                //           iconColor: accentColor,
+                //           actions: [
+                //             TextButton(
+                //               onPressed: () {
+                //                 Navigator.of(context).pop();
+                //               },
+                //               child: Text(
+                //                 "Close",
+                //                 style: ConstFonts.light(
+                //                   color: Colors.red,
+                //                   size: 14,
+                //                 ),
+                //               ),
+                //             ),
+                //           ],
+                //         );
+                //       },
+                //     );
+                //   },
+                // ),
+                // const SizedBox(height: 16.0),
+                // _SocialLoginButton(
+                //   text: "Login with Facebook",
+                //   svgData: facebookSvgData,
+                //   onTap: () {
+                //     showDialog(
+                //       context: context,
+                //       builder: (BuildContext context) {
+                //         return AlertDialog(
+                //           title: Text(
+                //             "Login-BTN - FB",
+                //             style: TextStyle(
+                //               color: pc,
+                //               fontWeight: FontWeight.bold,
+                //             ),
+                //           ),
+                //           icon: Icon(Icons.info_outline),
+                //           iconColor: accentColor,
+                //           backgroundColor: pbc,
+                //           actions: [
+                //             TextButton(
+                //               onPressed: () {
+                //                 Navigator.of(context).pop();
+                //               },
+                //               child: Text(
+                //                 "Close",
+                //                 style: ConstFonts.light(
+                //                   color: Colors.red,
+                //                   size: 14,
+                //                 ),
+                //               ),
+                //             ),
+                //           ],
+                //         );
+                //       },
+                //     );
+                //   },
+                // ),
+                // const SizedBox(height: 24.0),
+                //
+                // // "OR" Divider
+                // const _OrDivider(),
+                // const SizedBox(height: 24.0),
 
                 // Email and Password Fields
                 // Assign the controllers to the CustomInput widgets
@@ -312,12 +314,14 @@ class _LoginScreenState extends State<LoginPage> {
                   title: "Email",
                   hint: "example@gmail.com",
                   icon: Icons.email_rounded,
+                  initialValue: "",
                   controller: _emailController, // Assign controller
                 ),
                 const SizedBox(height: 16.0),
                 CustomInput(
                   title: "Password",
                   hint: "**********",
+                  initialValue: "",
                   icon: Icons.key_sharp,
                   controller: _passwordController,
                   // Assign controller
@@ -375,7 +379,7 @@ class _LoginScreenState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 20),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Forgot Password?
                     GestureDetector(
@@ -387,7 +391,7 @@ class _LoginScreenState extends State<LoginPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 10),
 
                 // Don't have an account? Register
                 Row(

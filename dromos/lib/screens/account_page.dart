@@ -13,19 +13,6 @@ class AccountPage extends StatelessWidget {
         title: const Text('My Account'),
         backgroundColor: Colors.transparent,
         foregroundColor: ConstColor.primaryColor,
-        // scrolledUnderElevation: 0,
-        // elevation: 0,
-        leading: BackButton(
-          color: ConstColor.primaryPurple,
-          onPressed: () {
-            Navigator.pop(context);
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => MyApp()),
-              (Route<dynamic> route) =>
-                  false, // This predicate removes all previous routes
-            );
-          },
-        ),
       ),
       backgroundColor: ConstColor.primaryBg,
       body: ListView(
@@ -104,7 +91,7 @@ class AccountPage extends StatelessWidget {
               child: CircleAvatar(
                 radius: 40,
                 // Added a slightly darker shade for the circle background for contrast
-                backgroundColor: Colors.white.withOpacity(0.2),
+                backgroundColor: Colors.white.withAlpha(51),
                 child: const Icon(Icons.face, size: 50, color: Colors.white),
               ),
             ),

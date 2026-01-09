@@ -9,16 +9,13 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
-
-  Color pc = ConstColor.primaryColor;
-  Color pbc = ConstColor.primaryBg;
   Color accentColor = ConstColor.primaryPurple;
 
   SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(
-        statusBarColor: accentColor.withAlpha(50),
-        systemNavigationBarColor: accentColor.withAlpha(200)
-      )
+    SystemUiOverlayStyle(
+      statusBarColor: accentColor.withAlpha(50),
+      systemNavigationBarColor: accentColor.withAlpha(200),
+    ),
   );
   WidgetsFlutterBinding.ensureInitialized();
   await _requestPermissions();
@@ -34,18 +31,23 @@ Future<void> _requestPermissions() async {
     final statuses = await [
       Permission.location,
       Permission.notification,
+      Permission.camera,
     ].request();
 
-    if (statuses[Permission.locationWhenInUse]?.isGranted == true) {
-      debugPrint('Location Only When in Use is granted');
+    if (statuses[Permission.location]!.isGranted) {
+      debugPrint("Location permission granted");
     } else {
-      debugPrint('No permission for location is granted');
+      debugPrint("Location permission denied");
     }
-
-    if (statuses[Permission.notification]?.isGranted == true) {
-      debugPrint('Notification permission is granted');
+    if (statuses[Permission.notification]!.isGranted) {
+      debugPrint("Notification permission granted");
     } else {
-      debugPrint('No permission for notification is granted');
+      debugPrint("Notification permission denied");
+    }
+    if (statuses[Permission.camera]!.isGranted) {
+      debugPrint("Camera permission granted");
+    } else {
+      debugPrint("Camera permission denied");
     }
   } else {
     // may be something erro

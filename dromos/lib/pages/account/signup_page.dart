@@ -3,7 +3,9 @@ import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/components/custom_input.dart';
-import 'package:flutter/services.dart';
+import 'package:dromos/services/ocr_service.dart';
+import 'package:dromos/models/id_card_info.dart';
+import 'package:image_picker/image_picker.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -17,6 +19,319 @@ class _SignupScreenState extends State<SignupPage> {
   Color pbc = ConstColor.primaryBg;
   Color accentColor = ConstColor.primaryPurple;
 
+  // Controllers for form fields
+  final TextEditingController _registrationController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _genderController = TextEditingController();
+  final TextEditingController _departmentController = TextEditingController();
+  final TextEditingController _hallController = TextEditingController();
+  final TextEditingController _sessionController = TextEditingController();
+
+  bool _hasScannedId = false;
+  bool _isScanning = false;
+
+  // OCR Service instance
+  late final OcrService _ocrService;
+
+  @override
+  void initState() {
+    super.initState();
+    _ocrService = OcrService();
+    // Prompt to scan ID card when page opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _promptScanIdCard();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ocrService.dispose();
+    _registrationController.dispose();
+    _nameController.dispose();
+    _genderController.dispose();
+    _departmentController.dispose();
+    _sessionController.dispose();
+    _hallController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _promptScanIdCard() async {
+
+    final result = await showDialog<String?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Scan ID Card',
+            style: ConstFonts.bold(size: 20, color: accentColor),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Please scan both side of your DU ID card to auto-fill registration details.',
+                style: ConstFonts.normal(size: 14, color: pc),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Choose scanning method:',
+                style: ConstFonts.bold(size: 13, color: accentColor),
+              ),
+            ],
+          ),
+          actions: [
+            OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).pop('gallery'),
+              icon: const Icon(Icons.photo_library),
+              label: Text(
+                'Upload Image',
+                style: ConstFonts.normal(size: 14, color: accentColor),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: accentColor,
+                side: BorderSide(color: accentColor),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.of(context).pop('camera'),
+              icon: const Icon(Icons.camera_alt),
+              style: ElevatedButton.styleFrom(backgroundColor: accentColor),
+              label: Text(
+                'Use Camera',
+                style: ConstFonts.normal(size: 14, color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null && mounted) {
+      if (result == 'camera') {
+        await _scanBothSides(ImageSource.camera);
+      } else if (result == 'gallery') {
+        await _scanBothSides(ImageSource.gallery);
+      }
+    }
+  }
+
+  Future<void> _scanBothSides(ImageSource source) async {
+    setState(() {
+      _isScanning = true;
+    });
+
+    try {
+      // Scan front side
+      final frontImagePath = await _ocrService.scanImageOnly(source: source);
+
+      if (frontImagePath == null) {
+        if (mounted) {
+          setState(() {
+            _isScanning = false;
+          });
+          _showErrorDialog('No image captured for front side', [
+            'Please try again and capture the front side of your ID card',
+          ]);
+        }
+        return;
+      }
+
+      // Process front side
+      final frontResult = await _ocrService.processImage(frontImagePath);
+
+      if (mounted && frontResult.success && frontResult.data != null) {
+        _fillFormWithIdCardInfo(frontResult.data!);
+
+        // Prompt for back side
+        final scanBack = await _showScanBackSideDialog();
+
+        if (scanBack == true) {
+          // Scan back side
+          final backImagePath = await _ocrService.scanImageOnly(source: source);
+
+          if (backImagePath != null) {
+            // Process back side for debug only
+            await _ocrService.processImageForUniqueCode(
+              backImagePath,
+              'ID Card Back Side',
+            );
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Both sides scanned successfully!',
+                    style: ConstFonts.normal(size: 14, color: Colors.white),
+                  ),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          }
+        }
+
+        setState(() {
+          _hasScannedId = true;
+          _isScanning = false;
+        });
+      } else if (mounted) {
+        setState(() {
+          _isScanning = false;
+        });
+        _showErrorDialog(
+          frontResult.errorMessage ?? 'Failed to scan ID card',
+          frontResult.tips,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isScanning = false;
+        });
+        _showErrorDialog('Unexpected error: ${e.toString()}', [
+          'Please try again or fill the form manually',
+        ]);
+      }
+    }
+  }
+
+  Future<bool?> _showScanBackSideDialog() async {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Scan Back Side',
+            style: ConstFonts.bold(size: 18, color: accentColor),
+          ),
+          content: Text(
+            'Scan back side of your ID card?\n\n(Optional - for verification purposes)',
+            style: ConstFonts.normal(size: 14, color: pc),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: accentColor),
+              child: Text(
+                'Scan Back',
+                style: ConstFonts.normal(size: 14, color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showErrorDialog(String message, List<String>? tips) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Scanning Failed',
+                  style: ConstFonts.bold(size: 18, color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(message, style: ConstFonts.normal(size: 14, color: pc)),
+                if (tips != null && tips.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Tips for better scanning:',
+                    style: ConstFonts.bold(size: 14, color: accentColor),
+                  ),
+                  const SizedBox(height: 8),
+                  ...tips.map(
+                    (tip) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        tip,
+                        style: ConstFonts.normal(size: 13, color: pc),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Fill Manually',
+                style: ConstFonts.normal(size: 14, color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _promptScanIdCard(); // Retry with options
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: accentColor),
+              child: Text(
+                'Try Again',
+                style: ConstFonts.normal(size: 14, color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _fillFormWithIdCardInfo(IdCardInfo info) {
+    if (info.registrationNumber != null) {
+      _registrationController.text = info.registrationNumber!;
+    }
+
+    if (info.name != null) {
+      _nameController.text = info.name!;
+    }
+
+    if (info.department != null) {
+      setState(() {
+        _departmentController.text = info.department!;
+      });
+    }
+
+    if (info.hall != null) {
+      setState(() {
+        _hallController.text = info.hall!;
+      });
+    }
+
+    if (info.session != null) {
+      _sessionController.text = info.session!;
+    }
+
+    // Show success message
+    if (mounted && info.hasData) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'ID card scanned successfully! Please verify the information.',
+            style: ConstFonts.normal(size: 14, color: Colors.white),
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -26,7 +341,7 @@ class _SignupScreenState extends State<SignupPage> {
       appBar: AppBar(
         title: const Text(
           "Dromos - Signup",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
         ),
         backgroundColor: Colors.transparent,
         bottomOpacity: 0,
@@ -37,145 +352,142 @@ class _SignupScreenState extends State<SignupPage> {
             Navigator.of(context).pop();
           },
         ),
+        actions: [
+          if (!_isScanning)
+            IconButton(
+              icon: Icon(Icons.document_scanner, color: accentColor),
+              tooltip: 'Scan ID Card',
+              onPressed: _promptScanIdCard,
+            ),
+        ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Container(
-            padding: const EdgeInsets.only(bottom: 32, left: 10, right: 10),
-            decoration: BoxDecoration(color: pbc),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.only(top: 12.0, bottom: 12.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Welcome to",
-                        style: ConstFonts.normal(size: 32, color: pc),
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              child: Container(
+                padding: const EdgeInsets.only(bottom: 32, left: 10, right: 10),
+                decoration: BoxDecoration(color: pbc),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.only(top: 12.0, bottom: 12.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.max,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Welcome to",
+                            style: ConstFonts.normal(size: 32, color: pc),
+                          ),
+                          Text(
+                            "Dromos",
+                            style: ConstFonts.bold(
+                              color: accentColor,
+                              size: 48,
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                    const SizedBox(height: 16.0),
+                    CustomInput(
+                      title: "Registration Number",
+                      hint: "2022******",
+                      icon: Icons.numbers,
+                      initialValue: _registrationController.text,
+                      controller: _registrationController,
+                    ),
+                    const SizedBox(height: 16.0),
+                    CustomInput(
+                      title: "Name",
+                      hint: "John Doe",
+                      icon: Icons.person,
+                      initialValue: "",
+                      controller: _nameController,
+                    ),
+                    const SizedBox(height: 16.0),
+                    // department input
+                    CustomInput(
+                      title: "Department",
+                      hint: "e.g: Department of Physics",
+                      initialValue: _departmentController.text,
+                      controller: _departmentController,
+                      isPassword: false,
+                      icon: Icons.school_rounded,
+                    ),
+                    const SizedBox(height: 16.0),
+                    // hall input
+                    CustomInput(
+                      title: "Attached Hall",
+                      hint: "Enter your hall name",
+                      initialValue: _hallController.text,
+                      controller: _hallController,
+                    ),
+                    const SizedBox(height: 16.0),
+                    // session key
+                    CustomInput(
+                      title: "Session (eg. 22-23)",
+                      hint: "22-23",
+                      icon: Icons.key_rounded,
+                      initialValue: "",
+                      controller: _sessionController,
+                    ),
+                    const SizedBox(height: 16.0),
+                    // signup Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // Handle Login
+                          debugPrint("new account created");
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: accentColor,
+                          padding: const EdgeInsets.symmetric(vertical: 14.0),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.0),
+                          ),
+                          iconSize: 24,
+                          iconColor: Colors.white,
+                        ),
+                        child: Text(
+                          "Sign up",
+                          style: ConstFonts.normal(
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_isScanning)
+              Container(
+                color: Colors.black54,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+                      ),
+                      const SizedBox(height: 16),
                       Text(
-                        "Dromos",
-                        style: ConstFonts.bold(color: accentColor, size: 48),
+                        'Scanning ID Card...',
+                        style: ConstFonts.normal(size: 16, color: Colors.white),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16.0),
-
-                // Email and Password Fields
-                CustomInput(
-                  title: "Email",
-                  hint: "example@gmail.com",
-                  icon: Icons.email_rounded,
-                  controller: TextEditingController(),
-                ),
-                const SizedBox(height: 16.0),
-                CustomInput(
-                  title: "Password",
-                  hint: "**********",
-                  icon: Icons.key_rounded,
-                  controller: TextEditingController(),
-                  isPassword: true,
-                ),
-                const SizedBox(height: 16.0),
-                CustomInput(
-                  title: "Registration Number",
-                  hint: "2022******",
-                  icon: Icons.numbers,
-                  controller: TextEditingController(),
-                ),
-                const SizedBox(height: 16.0),
-                CustomInput(
-                  title: "Name",
-                  hint: "John Doe",
-                  icon: Icons.person,
-                  controller: TextEditingController(),
-                ),
-                const SizedBox(height: 16.0),
-                const SizedBox(height: 16.0),
-                CustomInput(
-                  title: "Phone Number",
-                  hint: "015********",
-                  icon: Icons.phone,
-                  controller: TextEditingController(),
-                ),
-                const SizedBox(height: 16.0),
-                // dept and hall select box
-                SelectBox(
-                  id: 'department',
-                  label: 'Department',
-                  options: List<String>.from([
-                    'Computer Science Engineering',
-                    'Electrical and Electronics Engineering',
-                    'Physics',
-                    'Chemistry',
-                    'Applied Mathematics',
-                    'Applied Statistics',
-                    'Software Engineering',
-                    'Economics',
-                    'Psychology',
-                    'Biology',
-                  ]),
-                  selectedOption: 'Software Engineering',
-                  onChange: (String value) {
-                    debugPrint('Selected Department: $value');
-                  },
-                ),
-                SelectBox(
-                  id: 'hall',
-                  label: 'Attached Hall',
-                  options: List<String>.from([
-                    'Amar Ekushey Hall',
-                    'Fazlul Huq Hall',
-                    'Shahidullah Hall',
-                    'Sufia kamal Hall',
-                    'Jagannath Hall',
-                    'Begum Rokeya Hall',
-                    'Bangabandhu Sheikh Mujibur Rahman Hall',
-                  ]),
-                  selectedOption: 'Amar Ekushey Hall',
-                  onChange: (String value) {
-                    debugPrint('Selected Department: $value');
-                  },
-                ),
-                // session key
-                CustomInput(
-                  title: "Session (eg. 22-23)",
-                  hint: "22-23",
-                  icon: Icons.key_rounded,
-                  controller: TextEditingController(),
-                ),
-                const SizedBox(height: 16.0),
-                // signup Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Handle Login
-                      debugPrint("new account created");
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accentColor,
-                      padding: const EdgeInsets.symmetric(vertical: 14.0),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
-                      ),
-                    ),
-                    child: Text(
-                      "Sign up",
-                      style: ConstFonts.normal(size: 14, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+          ],
         ),
       ),
     );

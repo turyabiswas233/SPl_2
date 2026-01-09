@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:dromos/utils/colors.dart';
 
 ThemeData appTheme() {
-  ConstColor cc = ConstColor();
   Color pc = ConstColor.primaryColor;
   Color pbc = ConstColor.primaryBg;
   Color accentColor = ConstColor.primaryPurple;
