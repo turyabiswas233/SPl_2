@@ -1,8 +1,13 @@
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:dromos/models/id_card_info.dart';
 
 class IdCardParser {
   /// DU-ID identifier URL
-  static const String duIdIdentifierUrl = 'https://academic.eis.du.ac.bd/en/studentship';
+  static String uniqueCode = '';
+  static const String _duIdIdentifierUrl =
+      'https://academic.eis.du.ac.bd/en/studentship';
+
   /// Parse recognized text from ID card and extract relevant information
   static IdCardInfo parse(String recognizedText) {
     List<String> lines = recognizedText.split('\n');
@@ -53,5 +58,20 @@ class IdCardParser {
           return word[0].toUpperCase() + word.substring(1).toLowerCase();
         })
         .join(' ');
+  }
+
+  /// check if uniquecode is valid of the user using the identifier url
+  static Future<bool> isValidUniqueCode(String detectedRegNum) async {
+    const String baseUrl = _duIdIdentifierUrl + '/';
+    final String urlToCheck = baseUrl + uniqueCode;
+    http.Client();
+    final response = await http.get(Uri.parse(urlToCheck));
+    if (response.statusCode == 200) {
+      if (response.body.contains(detectedRegNum)) {
+        return true;
+      }
+      return false;
+    }
+    return false;
   }
 }

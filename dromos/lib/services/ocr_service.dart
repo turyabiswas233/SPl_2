@@ -126,12 +126,15 @@ class OcrService {
       final recognizedText = await _textRecognizer.processImage(inputImage);
       List<String> lines = recognizedText.text.split('\n');
       String uniqueCode = lines.length > 2 ? lines[2] : 'N/A';
+      if (uniqueCode == 'N/A' || uniqueCode.isEmpty) {
+        debugPrint('Unique code not found in $label side');
+        return;
+      }
 
-      debugPrint('===== $label =====');
+      IdCardParser.uniqueCode = uniqueCode;
+
       debugPrint('================');
-      debugPrint(
-        "Unique Code: ${IdCardParser.duIdIdentifierUrl}/$uniqueCode",
-      );
+      debugPrint("Unique Code: $uniqueCode");
       debugPrint('================');
     } catch (e) {
       debugPrint('Error processing $label: $e');

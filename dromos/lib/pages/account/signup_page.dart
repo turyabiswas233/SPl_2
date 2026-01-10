@@ -1,6 +1,8 @@
 import 'package:dromos/components/select_box.dart';
+import 'package:dromos/pages/account/signup_page2.dart';
 import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';
+import 'package:dromos/utils/id_card_parser.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/components/custom_input.dart';
 import 'package:dromos/services/ocr_service.dart';
@@ -56,7 +58,6 @@ class _SignupScreenState extends State<SignupPage> {
   }
 
   Future<void> _promptScanIdCard() async {
-
     final result = await showDialog<String?>(
       context: context,
       barrierDismissible: false,
@@ -91,16 +92,35 @@ class _SignupScreenState extends State<SignupPage> {
               ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: accentColor,
+                backgroundColor: Colors.white,
                 side: BorderSide(color: accentColor),
               ),
             ),
-            ElevatedButton.icon(
+            OutlinedButton.icon(
               onPressed: () => Navigator.of(context).pop('camera'),
               icon: const Icon(Icons.camera_alt),
-              style: ElevatedButton.styleFrom(backgroundColor: accentColor),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: accentColor,
+                backgroundColor: Colors.white,
+                side: BorderSide(color: accentColor),
+              ),
               label: Text(
                 'Use Camera',
+                style: ConstFonts.normal(size: 14, color: accentColor),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                // exit ocr card
+                Navigator.of(context).pop();
+              },
+              label: Text(
+                'Fill Manually',
                 style: ConstFonts.normal(size: 14, color: Colors.white),
+              ),
+              icon: const Icon(Icons.edit, color: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accentColor.withAlpha(230),
               ),
             ),
           ],
@@ -145,11 +165,18 @@ class _SignupScreenState extends State<SignupPage> {
         _fillFormWithIdCardInfo(frontResult.data!);
 
         // Prompt for back side
-        final scanBack = await _showScanBackSideDialog();
+        final scanBackMethod = await _showScanBackSideDialog();
 
-        if (scanBack == true) {
+        if (scanBackMethod != null && scanBackMethod != 'skip') {
+          // Determine source based on user choice
+          final backSource = scanBackMethod == 'camera'
+              ? ImageSource.camera
+              : ImageSource.gallery;
+
           // Scan back side
-          final backImagePath = await _ocrService.scanImageOnly(source: source);
+          final backImagePath = await _ocrService.scanImageOnly(
+            source: backSource,
+          );
 
           if (backImagePath != null) {
             // Process back side for debug only
@@ -158,17 +185,45 @@ class _SignupScreenState extends State<SignupPage> {
               'ID Card Back Side',
             );
 
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Both sides scanned successfully!',
-                    style: ConstFonts.normal(size: 14, color: Colors.white),
+            bool isValid = false;
+
+            IdCardParser.isValidUniqueCode(_registrationController.text).then((
+              isValid,
+            ) {
+              if (isValid) {
+                debugPrint('VALID.');
+                isValid = true;
+              } else {
+                debugPrint('INVALID.');
+                isValid = false;
+              }
+            });
+
+            // Validate user (unique code / registration) and show status-specific info
+            final bool validUser = await IdCardParser.isValidUniqueCode(
+              _registrationController.text.trim(),
+            );
+
+            if (!mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+              content: Text(
+                validUser
+                  ? 'Both sides scanned successfully! Your ID has been verified.'
+                  : 'Both sides scanned successfully, but verification failed. Please re-check your Registration No. or re-scan the back side.',
+                style: ConstFonts.normal(size: 14, color: Colors.white),
+              ),
+              backgroundColor: validUser ? Colors.green : Colors.orange,
+              action: validUser
+                ? null
+                : SnackBarAction(
+                  label: 'Re-scan',
+                  textColor: Colors.white,
+                  onPressed: _promptScanIdCard,
                   ),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            }
+              ),
+            );
           }
         }
 
@@ -197,8 +252,8 @@ class _SignupScreenState extends State<SignupPage> {
     }
   }
 
-  Future<bool?> _showScanBackSideDialog() async {
-    return showDialog<bool>(
+  Future<String?> _showScanBackSideDialog() async {
+    return showDialog<String>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -206,18 +261,56 @@ class _SignupScreenState extends State<SignupPage> {
             'Scan Back Side',
             style: ConstFonts.bold(size: 18, color: accentColor),
           ),
-          content: Text(
-            'Scan back side of your ID card?\n\n(Optional - for verification purposes)',
-            style: ConstFonts.normal(size: 14, color: pc),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Scan back side of your ID card?\n\n(Optional - for verification purposes)',
+                style: ConstFonts.normal(size: 14, color: pc),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Choose scanning method:',
+                style: ConstFonts.bold(size: 13, color: accentColor),
+              ),
+            ],
           ),
           actions: [
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: accentColor),
-              child: Text(
-                'Scan Back',
+            OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).pop('gallery'),
+              icon: const Icon(Icons.photo_library),
+              label: Text(
+                'Upload Image',
+                style: ConstFonts.normal(size: 14, color: accentColor),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: accentColor,
+                backgroundColor: Colors.white,
+                side: BorderSide(color: accentColor),
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).pop('camera'),
+              icon: const Icon(Icons.camera_alt),
+              label: Text(
+                'Use Camera',
+                style: ConstFonts.normal(size: 14, color: accentColor),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: accentColor,
+                backgroundColor: Colors.white,
+                side: BorderSide(color: accentColor),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.of(context).pop('skip'),
+              icon: const Icon(Icons.skip_next, color: Colors.white),
+              label: Text(
+                'Skip',
                 style: ConstFonts.normal(size: 14, color: Colors.white),
               ),
+              style: ElevatedButton.styleFrom(backgroundColor: accentColor),
             ),
           ],
         );
@@ -391,6 +484,14 @@ class _SignupScreenState extends State<SignupPage> {
                               size: 48,
                             ),
                           ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Step 1 of 2",
+                            style: ConstFonts.bold(
+                              color: accentColor,
+                              size: 16,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -443,8 +544,64 @@ class _SignupScreenState extends State<SignupPage> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          // Handle Login
-                          debugPrint("new account created");
+                          // Validate required fields
+                          if (_registrationController.text.isEmpty ||
+                              _nameController.text.isEmpty ||
+                              _departmentController.text.isEmpty ||
+                              _hallController.text.isEmpty ||
+                              _sessionController.text.isEmpty) {
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  backgroundColor: Colors.white,
+                                  title: Text(
+                                    "Missing Information",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: pc,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  content: const Text(
+                                    "Please fill in all required fields before proceeding",
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: Text(
+                                        "Got it",
+                                        style: ConstFonts.light(
+                                          color: Colors.green.shade700,
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                            return;
+                          }
+
+                          // Navigate to second signup page with data
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => SignupPage2(
+                                userData: {
+                                  'registration': _registrationController.text,
+                                  'name': _nameController.text,
+                                  'gender': _genderController.text,
+                                  'department': _departmentController.text,
+                                  'hall': _hallController.text,
+                                  'session': _sessionController.text,
+                                },
+                              ),
+                            ),
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: accentColor,
@@ -452,15 +609,24 @@ class _SignupScreenState extends State<SignupPage> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12.0),
                           ),
-                          iconSize: 24,
-                          iconColor: Colors.white,
                         ),
-                        child: Text(
-                          "Sign up",
-                          style: ConstFonts.normal(
-                            size: 14,
-                            color: Colors.white,
-                          ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "Next",
+                              style: ConstFonts.normal(
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ],
                         ),
                       ),
                     ),

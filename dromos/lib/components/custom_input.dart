@@ -67,15 +67,15 @@ class _CustomTextFieldState extends State<CustomInput> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12.0),
           borderSide: BorderSide(
-            color: Colors.white.withAlpha(150),
-            width: 1.0,
+            color: pc.withAlpha(50),
+            width: 1.5,
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12.0),
           borderSide: BorderSide(
-            color: Colors.white.withAlpha(150),
-            width: 1.0,
+            color: pc.withAlpha(50),
+            width: 1.5,
           ),
         ),
         focusedBorder: OutlineInputBorder(
