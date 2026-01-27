@@ -1,7 +1,8 @@
-import 'package:dromos/utils/_fonts.dart';
-import 'package:dromos/utils/noti.dart';
+import 'package:dromos/pages/account/login_page.dart';
+import 'package:dromos/pages/account/signup_page.dart';
+import 'package:dromos/utils/fonts.dart';
 import 'package:flutter/material.dart';
-import 'package:dromos/utils/_colors.dart';
+import 'package:dromos/utils/colors.dart';
 
 class User {
   final String name;
@@ -25,29 +26,40 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _HomeScreen().build(context);
+    return _HomeScreen(context);
   }
 }
 
 class _HomeScreen extends HomeScreen {
-  _HomeScreen({super.key});
+  final BuildContext context;
 
-  final List<SizedBox> buttons = [
+  _HomeScreen(this.context);
+
+  Color pc = ConstColor.primaryColor;
+  Color pbc = ConstColor.primaryBg;
+  Color secondaryColor = ConstColor.primaryPurple;
+
+
+  late final List<SizedBox> buttons = [
     SizedBox(
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () {
           // Handle Login
           debugPrint("login page");
-          NotiService().showNotification(
-            id: DateTime.now().microsecondsSinceEpoch % 1000,
-            title: "Visitng Login Page",
-            body: "User pressed the login button",
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) {
+                return const LoginPage();
+              },
+            ),
           );
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: ConstColor.primary_purple,
-          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          backgroundColor: secondaryColor,
+          padding: const EdgeInsets.symmetric(vertical: 14.0),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.0),
           ),
@@ -68,15 +80,18 @@ class _HomeScreen extends HomeScreen {
         onPressed: () {
           // Handle Login
           debugPrint("signup page");
-          NotiService().showNotification(
-            id: DateTime.now().microsecondsSinceEpoch % 1000,
-            title: "Visitng Signup Page",
-            body: "User pressed the signup button",
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) {
+                return const SignupPage();
+              },
+            ),
           );
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: ConstColor.primary_purple,
-          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          backgroundColor: secondaryColor,
+          padding: const EdgeInsets.symmetric(vertical: 14.0),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.0),
           ),
@@ -96,8 +111,7 @@ class _HomeScreen extends HomeScreen {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(backgroundColor: Colors.white),
+      backgroundColor: pbc,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Center(
@@ -110,15 +124,12 @@ class _HomeScreen extends HomeScreen {
                     Text(
                       "Dromos",
                       textAlign: TextAlign.center,
-                      style: ConstFonts.bold(
-                        color: ConstColor.primary_purple,
-                        size: 64,
-                      ),
+                      style: ConstFonts.bold(color: secondaryColor, size: 64),
                     ),
                     Text(
                       "Smart Simple Sustainable",
                       textAlign: TextAlign.center,
-                      style: ConstFonts.normal(size: 24),
+                      style: ConstFonts.normal(size: 24, color: pc),
                     ),
                   ],
                 ),
@@ -126,82 +137,10 @@ class _HomeScreen extends HomeScreen {
                 Container(
                   margin: EdgeInsets.only(top: 150),
                   padding: const EdgeInsets.all(24),
-                  child: Column(spacing: 24, children: buttons),
+                  child: Column(spacing: 24, children: [...buttons]),
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TestFontScreen {
-  final List<Fonts> fonts = [
-    Fonts("thin", FontWeight.w300),
-    Fonts("light", FontWeight.w400),
-    Fonts("regular", FontWeight.w500),
-    Fonts("medium", FontWeight.w600),
-    Fonts("semibold", FontWeight.w700),
-    Fonts("bold", FontWeight.w700),
-  ];
-
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: ConstColor.primary_color,
-        title: const Text(
-          'Home Page',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w300,
-            fontFamily: "Poppins",
-          ),
-        ),
-      ),
-      body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Text(
-                'Welcome to the Home Page!',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontFamily: 'ComicRelief',
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: fonts.length,
-                  itemBuilder: (context, index) {
-                    final user = fonts[index];
-                    return Container(
-                      margin: EdgeInsets.only(bottom: 10),
-                      padding: EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        color: Colors.white70,
-                        border: Border.all(color: Colors.grey, width: 1.0),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: ListTile(
-                        title: Text(
-                          user.name,
-                          style: TextStyle(
-                            fontWeight: user.weight,
-                            fontFamily: "Poppins",
-                          ),
-                        ),
-                        subtitle: Text(user.weight.toString()),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
           ),
         ),
       ),

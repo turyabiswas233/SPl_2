@@ -1,47 +1,57 @@
 import 'dart:io';
 
-import 'package:dromos/app_shell.dart';
-import 'package:dromos/utils/_colors.dart';
+import 'package:dromos/pages/home/home_page.dart';
+import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/noti.dart';
+import 'package:dromos/utils/theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
+  Color accentColor = ConstColor.primaryPurple;
+
+  SystemChrome.setSystemUIOverlayStyle(
+    SystemUiOverlayStyle(
+      statusBarColor: accentColor.withAlpha(50),
+      systemNavigationBarColor: accentColor.withAlpha(200),
+    ),
+  );
   WidgetsFlutterBinding.ensureInitialized();
   await _requestPermissions();
   NotiService().initNoti();
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
-// requset necessary permissions
+// request necessary permissions
 Future<void> _requestPermissions() async {
   // notification (Android 13+ needs POST_NOTIFICATIONS too)
-  await Permission.notification.request();
 
   if (Platform.isAndroid) {
-    // request storage-related permissions together; on Android 13+ the READ_MEDIA_* permissions are used
     final statuses = await [
       Permission.location,
-      Permission.photos,
-      Permission
-          .manageExternalStorage, // will require user to grant in system settings on newer Android
+      Permission.notification,
+      Permission.camera,
     ].request();
 
-    if (statuses[Permission.manageExternalStorage]?.isGranted == true) {
-      debugPrint('Manage external storage granted');
-    } else if (statuses[Permission.storage]?.isGranted == true) {
-      debugPrint('Legacy storage permission granted');
+    if (statuses[Permission.location]!.isGranted) {
+      debugPrint("Location permission granted");
     } else {
-      debugPrint(
-        'Storage permission not granted; you may need to open settings',
-      );
-      // optionally open settings:
-      // await openAppSettings();
+      debugPrint("Location permission denied");
+    }
+    if (statuses[Permission.notification]!.isGranted) {
+      debugPrint("Notification permission granted");
+    } else {
+      debugPrint("Notification permission denied");
+    }
+    if (statuses[Permission.camera]!.isGranted) {
+      debugPrint("Camera permission granted");
+    } else {
+      debugPrint("Camera permission denied");
     }
   } else {
-    // iOS: request Photos if needed
-    final status = await Permission.photos.request();
-    debugPrint('iOS photos permission: $status');
+    // may be something erro
+    debugPrint("something error in access");
   }
 }
 
@@ -53,12 +63,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Dromos - Enjoy the ride',
-      theme: ThemeData(
-        primaryColor: ConstColor.primary_purple,
-        fontFamily: "Poppins",
-        fontFamilyFallback: ["Poppins"],
-      ),
-      home: const AppShell(),
+      theme: appTheme(),
+      home: const HomeScreen(),
     );
   }
 }
