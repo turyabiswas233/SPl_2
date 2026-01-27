@@ -1,55 +1,76 @@
-import express from "express";
-import cors from "cors";
-import { config } from "dotenv";
+require('dotenv').config({ path: [".env"] });
+const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
 
-config({
-  path: "./.env",
-});
+// Import configurations
+const corsOptions = require('./config/cors');
+const { initDB } = require('./config/database');
 
+// Import middleware
+const errorHandler = require('./middleware/errorHandler');
+
+// Import routes
+const apiRoutes = require('./routes');
+
+// Initialize Express app
 const app = express();
-app.use(
-  cors({
-    origin: ["http://localhost:5173"],
-    methods: ["GET", "POST", "PUT", "DELETE"],
-  })
-);
 
-//home route
-app.get("/", (req, res) => {
-  res.send("Hello, World!");
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors(corsOptions));
+
+// API Routes
+app.use('/api', apiRoutes);
+
+// Root route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Dromos Backend API",
+    version: "2.0",
+    documentation: "/api/info"
+  });
 });
 
-app.get("/studentship/:id", async (req, res) => {
-  const studentId = req.params.id;
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: "Route not found"
+  });
+});
+
+// Error Handler (must be last)
+app.use(errorHandler);
+
+// Server Configuration
+const PORT = process.env.PORT || 3000;
+
+// Start Server
+const startServer = async () => {
   try {
-    const du_response = await fetch(
-      `https://academic.eis.du.ac.bd/en/studentship/${studentId}`,
-      {
-        method: "GET",
-        mode: "no-cors",
-      }
-    );
+    // Connect to MongoDB
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("✅ MongoDB Connected");
 
-    if (du_response.status !== 200) {
-      return res
-        .send({ message: `Failed to verify Student ID ${studentId}.` })
-        .status(400);
-    }
+    // Initialize PostgreSQL Tables
+    await initDB();
+    console.log("✅ PostgreSQL Initialized");
 
-    console.log(await du_response.json());
-
-    res
-      .send({
-        message: `Student ID ${studentId} verified successfully.`,
-        data: await du_response.json(),
-      })
-      .status(200);
+    // Start Express Server
+    app.listen(PORT, () => {
+      console.log(`🚀 Dromos Backend running on port ${PORT}`);
+      console.log(`📍 API Documentation: http://localhost:${PORT}/api/info`);
+    });
   } catch (error) {
-    console.log(error);
-    res.send({ message: "An error occurred during verification." }).status(500);
+    console.error("❌ Server startup failed:", error);
+    process.exit(1);
   }
-});
+};
 
-app.listen(3000, () => {
-  console.log("Server is running on http://localhost:3000");
-});
+startServer();
+
+module.exports = app;
+
