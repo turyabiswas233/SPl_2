@@ -1,104 +1,152 @@
--- 1. Enable Spatial Extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "postgis";
+-- 1. Remove CREATE EXTENSION lines (We don't need them anymore!)
 
--- 2. Create Custom Types (Enums)
-CREATE TYPE app_role AS ENUM ('student', 'admin');
-CREATE TYPE user_status AS ENUM ('unverified', 'verified', 'banned');
-CREATE TYPE ride_status AS ENUM ('open', 'in_progress', 'completed', 'cancelled');
-CREATE TYPE gender_type AS ENUM ('male', 'female', 'any');
-CREATE TYPE report_status AS ENUM ('pending', 'under_review', 'resolved', 'dismissed');
+-- 2. Keep ENUMS (with IF NOT EXISTS to avoid errors on re-run)
+DO $$ BEGIN
+    CREATE TYPE app_role AS ENUM ('student', 'admin');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- 3. Users Table (Academic & Identity Data)
-CREATE TABLE users (
-    user_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+DO $$ BEGIN
+    CREATE TYPE user_status AS ENUM ('unverified', 'verified', 'banned');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE ride_status AS ENUM ('open', 'in_progress', 'completed', 'cancelled');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE gender_type AS ENUM ('male', 'female', 'any');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE report_status AS ENUM ('pending', 'resolved', 'dismissed');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- 3. Update Tables to accept manual UUIDs and Float Coordinates
+
+CREATE TABLE IF NOT EXISTS users (
+    user_id UUID PRIMARY KEY, -- Removed DEFAULT uuid_generate_v4()
     full_name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE, -- Made email nullable if not always provided
+    password VARCHAR(255), -- Hashed password for email/password auth
     phone_number VARCHAR(15) UNIQUE,
+    gender VARCHAR(10),
     role app_role DEFAULT 'student',
     
-    -- Fields extracted via OCR/QR
     registration_number VARCHAR(20) UNIQUE,
     dept_name VARCHAR(100),
-    session VARCHAR(15),
-    hall_name VARCHAR(100),
-    
     verification_status user_status DEFAULT 'unverified',
-    id_card_image_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. Rides Table (Trip Header)
-CREATE TABLE rides (
-    ride_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE IF NOT EXISTS rides (
+    ride_id UUID PRIMARY KEY, -- Manual UUID
     initiator_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
-    
-    -- Starting Point
+    preferred_gender gender_type DEFAULT 'any',
+
     start_location TEXT NOT NULL,
-    start_coords GEOGRAPHY(POINT, 4326) NOT NULL,
+    start_lat FLOAT NOT NULL, -- Changed from GEOGRAPHY
+    start_lng FLOAT NOT NULL, -- Changed from GEOGRAPHY
     
-    -- Destination
     destination_name TEXT NOT NULL,
-    destination_coords GEOGRAPHY(POINT, 4326) NOT NULL,
+    dest_lat FLOAT NOT NULL, -- Changed from GEOGRAPHY
+    dest_lng FLOAT NOT NULL, -- Changed from GEOGRAPHY
     
-    -- Security Handshake
     trip_qr_code TEXT UNIQUE NOT NULL,
     trip_otp CHAR(6) NOT NULL,
-    
-    -- Preferences & Status
-    max_seats INTEGER NOT NULL CHECK (max_seats > 0),
-    preferred_gender gender_type DEFAULT 'any',
+    max_seats INTEGER NOT NULL,
     status ride_status DEFAULT 'open',
-    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5. Ride Participants Table (Multi-passenger & Meeting Points)
-CREATE TABLE ride_participants (
-    participant_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE IF NOT EXISTS ride_participants (
+    ride_participant_id UUID PRIMARY KEY,
     ride_id UUID REFERENCES rides(ride_id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+    participant_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
     
-    -- Specific Meeting Point for this Passenger
-    meeting_location TEXT,
-    meeting_coords GEOGRAPHY(POINT, 4326),
+    meeting_lat FLOAT, -- Coordinate stored as simple number
+    meeting_lng FLOAT, -- Coordinate stored as simple number
     
-    -- Handshake Status
     has_met BOOLEAN DEFAULT FALSE,
     met_at TIMESTAMP WITH TIME ZONE,
-    
-    joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    
-    -- Prevent a user from joining the same ride multiple times
-    UNIQUE(ride_id, user_id)
+    UNIQUE(ride_id, user_id, participant_id)
 );
 
--- 6. Reports Table (Safety & Disciplinary)
-CREATE TABLE reports (
-    report_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    reporter_id UUID REFERENCES users(user_id),
-    reported_user_id UUID REFERENCES users(user_id),
-    ride_id UUID REFERENCES rides(ride_id),
-    
-    issue_type VARCHAR(50) NOT NULL, -- e.g., 'Route Deviation', 'Misconduct'
-    description TEXT,
+CREATE TABLE IF NOT EXISTS reports (
+    report_id UUID PRIMARY KEY,
+    reporter_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    reported_id UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    ride_id UUID REFERENCES rides(ride_id) ON DELETE CASCADE,
+    issue_type VARCHAR(255) NOT NULL,
     status report_status DEFAULT 'pending',
-    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 7. Admin Audit Logs
-CREATE TABLE admin_audit_logs (
-    log_id SERIAL PRIMARY KEY,
-    admin_id UUID REFERENCES users(user_id),
-    action_type VARCHAR(50), -- e.g., 'BAN_USER', 'RESOLVE_REPORT'
-    target_user_id UUID REFERENCES users(user_id),
-    reason TEXT,
-    performed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS notifications (
+    notification_id UUID PRIMARY KEY,
+    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+    ride_id UUID REFERENCES rides(ride_id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 8. Indexes for Performance
-CREATE INDEX idx_rides_start_coords ON rides USING GIST (start_coords);
-CREATE INDEX idx_rides_status ON rides (status);
-CREATE INDEX idx_participants_ride ON ride_participants (ride_id);
-CREATE INDEX idx_users_reg_no ON users (registration_number);
+CREATE TABLE IF NOT EXISTS ride_requests (
+    request_id UUID PRIMARY KEY,
+    ride_id UUID REFERENCES rides(ride_id) ON DELETE CASCADE,
+    requester_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'pending', -- pending, accepted, rejected
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(ride_id, requester_id)
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+    message_id UUID PRIMARY KEY,
+    ride_id UUID REFERENCES rides(ride_id) ON DELETE CASCADE,
+    sender_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+    message_text TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ratings (
+    rating_id UUID PRIMARY KEY,
+    ride_id UUID REFERENCES rides(ride_id) ON DELETE CASCADE,
+    rater_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+    rated_user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(ride_id, rater_id, rated_user_id)
+);
+
+CREATE TABLE IF NOT EXISTS fares (
+    fare_id UUID PRIMARY KEY,
+    ride_id UUID REFERENCES rides(ride_id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+    amount DECIMAL(10, 2) NOT NULL,
+    paid BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sos_alerts (
+    alert_id UUID PRIMARY KEY,
+    ride_id UUID REFERENCES rides(ride_id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+    alert_type VARCHAR(50) NOT NULL, -- route_deviation, emergency, other
+    latitude FLOAT NOT NULL,
+    longitude FLOAT NOT NULL,
+    status VARCHAR(20) DEFAULT 'active', -- active, resolved
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- (Keep other tables, ensure UUID defaults removed where applicable)
