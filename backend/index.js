@@ -11,7 +11,7 @@ const { initDB } = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 
 // Import routes
-const apiRoutes = require('./routes');
+const apiRoutes = require('./routes/index');
 
 // Initialize Express app
 const app = express();
@@ -29,7 +29,8 @@ app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
     message: "Dromos Backend API",
-    version: "2.0",
+    version: "1.0",
+    currentVersion: "v1",
     documentation: "/api/info"
   });
 });
@@ -63,6 +64,7 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`🚀 Dromos Backend running on port ${PORT}`);
       console.log(`📍 API Documentation: http://localhost:${PORT}/api/info`);
+      console.log(`📍 API v1 Base: http://localhost:${PORT}/api/v1`);
     });
   } catch (error) {
     console.error("❌ Server startup failed:", error);
