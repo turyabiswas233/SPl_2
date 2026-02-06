@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dromos/pages/home/home_page.dart';
 import 'package:dromos/utils/colors.dart';
+import 'package:dromos/services/user_service.dart';
 import 'package:dromos/utils/noti.dart';
 import 'package:dromos/utils/theme.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +21,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _requestPermissions();
   NotiService().initNoti();
+  // Load saved session & fetch profile if token exists
+  await UserService().init();
   runApp(MyApp());
 }
 
