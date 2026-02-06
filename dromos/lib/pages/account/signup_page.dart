@@ -163,70 +163,6 @@ class _SignupScreenState extends State<SignupPage> {
 
       if (mounted && frontResult.success && frontResult.data != null) {
         _fillFormWithIdCardInfo(frontResult.data!);
-
-        // Prompt for back side
-        final scanBackMethod = await _showScanBackSideDialog();
-
-        if (scanBackMethod != null && scanBackMethod != 'skip') {
-          // Determine source based on user choice
-          final backSource = scanBackMethod == 'camera'
-              ? ImageSource.camera
-              : ImageSource.gallery;
-
-          // Scan back side
-          final backImagePath = await _ocrService.scanImageOnly(
-            source: backSource,
-          );
-
-          if (backImagePath != null) {
-            // Process back side for debug only
-            await _ocrService.processImageForUniqueCode(
-              backImagePath,
-              'ID Card Back Side',
-            );
-
-            bool isValid = false;
-
-            IdCardParser.isValidUniqueCode(_registrationController.text).then((
-              isValid,
-            ) {
-              if (isValid) {
-                debugPrint('VALID.');
-                isValid = true;
-              } else {
-                debugPrint('INVALID.');
-                isValid = false;
-              }
-            });
-
-            // Validate user (unique code / registration) and show status-specific info
-            final bool validUser = await IdCardParser.isValidUniqueCode(
-              _registrationController.text.trim(),
-            );
-
-            if (!mounted) return;
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-              content: Text(
-                validUser
-                  ? 'Both sides scanned successfully! Your ID has been verified.'
-                  : 'Both sides scanned successfully, but verification failed. Please re-check your Registration No. or re-scan the back side.',
-                style: ConstFonts.normal(size: 14, color: Colors.white),
-              ),
-              backgroundColor: validUser ? Colors.green : Colors.orange,
-              action: validUser
-                ? null
-                : SnackBarAction(
-                  label: 'Re-scan',
-                  textColor: Colors.white,
-                  onPressed: _promptScanIdCard,
-                  ),
-              ),
-            );
-          }
-        }
-
         setState(() {
           _hasScannedId = true;
           _isScanning = false;
@@ -416,7 +352,7 @@ class _SignupScreenState extends State<SignupPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'ID card scanned successfully! Please verify the information.',
+            'ID card scanned successfully!',
             style: ConstFonts.normal(size: 14, color: Colors.white),
           ),
           backgroundColor: Colors.green,
@@ -530,15 +466,6 @@ class _SignupScreenState extends State<SignupPage> {
                       controller: _hallController,
                     ),
                     const SizedBox(height: 16.0),
-                    // session key
-                    CustomInput(
-                      title: "Session (eg. 22-23)",
-                      hint: "22-23",
-                      icon: Icons.key_rounded,
-                      initialValue: "",
-                      controller: _sessionController,
-                    ),
-                    const SizedBox(height: 16.0),
                     // signup Button
                     SizedBox(
                       width: double.infinity,
@@ -548,8 +475,7 @@ class _SignupScreenState extends State<SignupPage> {
                           if (_registrationController.text.isEmpty ||
                               _nameController.text.isEmpty ||
                               _departmentController.text.isEmpty ||
-                              _hallController.text.isEmpty ||
-                              _sessionController.text.isEmpty) {
+                              _hallController.text.isEmpty) {
                             showDialog(
                               context: context,
                               builder: (BuildContext context) {
@@ -597,7 +523,6 @@ class _SignupScreenState extends State<SignupPage> {
                                   'gender': _genderController.text,
                                   'department': _departmentController.text,
                                   'hall': _hallController.text,
-                                  'session': _sessionController.text,
                                 },
                               ),
                             ),

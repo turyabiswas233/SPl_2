@@ -1,8 +1,13 @@
+import 'dart:convert';
+
 import 'package:dromos/components/custom_input.dart';
 import 'package:dromos/screens/main_screen.dart';
+import 'package:dromos/services/user_service.dart';
 import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';
 import 'package:flutter/material.dart';
+import 'package:dromos/utils/api.dart';
+import 'package:http/http.dart' as http;
 
 class SignupPage2 extends StatefulWidget {
   final Map<String, String> userData;
@@ -21,75 +26,38 @@ class _SignupPage2State extends State<SignupPage2> {
   // Controllers for form fields
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
 
-  void _handleSubmit() {
-    // Validate fields
-    if (_emailController.text.isEmpty ||
-        _passwordController.text.isEmpty ||
-        _phoneController.text.isEmpty) {
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            backgroundColor: Colors.white,
-            title: Text(
-              "Missing Information",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: pc, fontWeight: FontWeight.bold),
-            ),
-            content: const Text(
-              "Please fill in all required fields (Email, Password, and Phone)",
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: Text(
-                  "Got it",
-                  style: ConstFonts.light(
-                    color: Colors.green.shade700,
-                    size: 14,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      );
-      return;
-    }
-
-    // Show success dialog
+  void _showErrorDialog(String title, String message) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: Colors.white,
           title: Text(
-            "Account Created Successfully!",
+            title,
             textAlign: TextAlign.center,
             style: TextStyle(color: pc, fontWeight: FontWeight.bold),
           ),
-          content: Text("Welcome to Dromos, ${widget.userData['name']}!"),
-          backgroundColor: Colors.white,
-          icon: const Icon(Icons.check_circle),
-          iconColor: Colors.green,
+          content: Text(message),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: Text(
-                "Continue",
+                "Got it",
                 style: ConstFonts.light(
                   color: Colors.green.shade700,
                   size: 14,
@@ -100,16 +68,138 @@ class _SignupPage2State extends State<SignupPage2> {
         );
       },
     );
+  }
 
-    // Navigate to MainScreen after a delay
-    Future.delayed(const Duration(seconds: 2), () {
-      if (context.mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const MainScreen()),
-          (Route<dynamic> route) => false,
+  Future<void> _handleSubmit() async {
+    // Validate fields
+    if (_emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _confirmPasswordController.text.isEmpty ||
+        _phoneController.text.isEmpty) {
+      _showErrorDialog(
+        "Missing Information",
+        "Please fill in all required fields (Email, Password, Confirm Password, and Phone)",
+      );
+      return;
+    }
+
+    // Validate password match
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showErrorDialog(
+        "Password Mismatch",
+        "Password and Confirm Password do not match",
+      );
+      return;
+    }
+
+    // Validate email format
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(_emailController.text.trim())) {
+      _showErrorDialog(
+        "Invalid Email",
+        "Please enter a valid email address",
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Build the registration payload from both steps
+      final body = {
+        'full_name': widget.userData['name'] ?? '',
+        'email': _emailController.text.trim(),
+        'password': _passwordController.text,
+        'phone_number': _phoneController.text.trim(),
+        'registration_number': widget.userData['registration'] ?? '',
+        'dept_name': widget.userData['department'] ?? '',
+        'hall_name': widget.userData['hall'] ?? '',
+      };
+
+      final response = await http.post(
+        Uri.parse('${Api.URL}/auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+
+      if (!mounted) return;
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (responseData['success'] == true) {
+          // Save session & fetch full profile
+          final token = responseData['data']?['token'] ?? '';
+          final userId =
+              responseData['data']?['user']?['user_id'] ?? '';
+
+          final userService = UserService();
+          await userService.saveSession(token: token, userId: userId);
+          await userService.fetchProfile();
+
+          if (!mounted) return;
+
+          // Show success dialog
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext ctx) {
+              return AlertDialog(
+                title: Text(
+                  "Account Created Successfully!",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: pc, fontWeight: FontWeight.bold),
+                ),
+                content:
+                    Text("Welcome to Dromos, ${widget.userData['name']}!"),
+                backgroundColor: Colors.white,
+                icon: const Icon(Icons.check_circle),
+                iconColor: Colors.green,
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                            builder: (context) => const MainScreen()),
+                        (Route<dynamic> route) => false,
+                      );
+                    },
+                    child: Text(
+                      "Continue",
+                      style: ConstFonts.light(
+                        color: Colors.green.shade700,
+                        size: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        } else {
+          _showErrorDialog(
+            "Registration Failed",
+            responseData['message'] ?? "Something went wrong. Please try again.",
+          );
+        }
+      } else {
+        _showErrorDialog(
+          "Registration Failed",
+          responseData['message'] ?? "Server error (${response.statusCode}). Please try again.",
         );
       }
-    });
+    } catch (e) {
+      if (!mounted) return;
+      _showErrorDialog(
+        "Connection Error",
+        "Could not connect to server. Please check your internet connection and try again. Connection URL: ${Api.URL}"
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -191,13 +281,23 @@ class _SignupPage2State extends State<SignupPage2> {
                   initialValue: "",
                   isPassword: true,
                 ),
+                const SizedBox(height: 16.0),
+                // Confirm Password Field
+                CustomInput(
+                  title: "Confirm Password",
+                  hint: "**********",
+                  icon: Icons.key_rounded,
+                  controller: _confirmPasswordController,
+                  initialValue: "",
+                  isPassword: true,
+                ),
                 const SizedBox(height: 32.0),
 
                 // Submit Button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _handleSubmit,
+                    onPressed: _isLoading ? null : _handleSubmit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accentColor,
                       padding: const EdgeInsets.symmetric(vertical: 14.0),
@@ -205,20 +305,29 @@ class _SignupPage2State extends State<SignupPage2> {
                         borderRadius: BorderRadius.circular(12.0),
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          "Complete Registration",
-                          style: ConstFonts.normal(
-                            size: 14,
-                            color: Colors.white,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Complete Registration",
+                                style: ConstFonts.normal(
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                      ],
-                    ),
                   ),
                 ),
               ],
