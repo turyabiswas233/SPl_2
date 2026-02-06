@@ -20,7 +20,7 @@ EXCEPTION
 END $$;
 
 DO $$ BEGIN
-    CREATE TYPE gender_type AS ENUM ('male', 'female', 'any');
+    CREATE TYPE gender_type AS ENUM ('male', 'female', 'other');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS users (
     
     registration_number VARCHAR(20) UNIQUE,
     dept_name VARCHAR(100),
+    hall_name VARCHAR(100),
     verification_status user_status DEFAULT 'unverified',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
