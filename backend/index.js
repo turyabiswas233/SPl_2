@@ -1,17 +1,17 @@
-require('dotenv').config({ path: [".env"] });
-const express = require('express');
-const cors = require('cors');
-const mongoose = require('mongoose');
+require("dotenv").config({ path: [".env"], override: false });
+const express = require("express");
+const cors = require("cors");
+const mongoose = require("mongoose");
 
 // Import configurations
-const corsOptions = require('./config/cors');
-const { initDB } = require('./config/database');
+const corsOptions = require("./config/cors");
+const { initDB } = require("./config/database");
 
 // Import middleware
-const errorHandler = require('./middleware/errorHandler');
+const errorHandler = require("./middleware/errorHandler");
 
 // Import routes
-const apiRoutes = require('./routes/index');
+const apiRoutes = require("./routes/index");
 
 // Initialize Express app
 const app = express();
@@ -22,16 +22,16 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors(corsOptions));
 
 // API Routes
-app.use('/api', apiRoutes);
+app.use("/api", apiRoutes);
 
 // Root route
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
     message: "Dromos Backend API",
     version: "1.0",
     currentVersion: "v1",
-    documentation: "/api/info"
+    documentation: "/api/info",
   });
 });
 
@@ -39,7 +39,7 @@ app.get('/', (req, res) => {
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    error: "Route not found"
+    error: "Route not found",
   });
 });
 
@@ -75,4 +75,3 @@ const startServer = async () => {
 startServer();
 
 module.exports = app;
-
