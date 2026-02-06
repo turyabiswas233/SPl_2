@@ -17,7 +17,7 @@ class _MainScreenState extends State<MainScreen> {
     const Center(child: Text('Home Page')),
     const Center(child: Text('Notifications Page')),
     const Center(child: Text('Activity Page')),
-    const AccountPage(),
+    AccountPage(),
   ];
 
   Color black = ConstColor.primaryColor;
@@ -27,10 +27,10 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ConstColor.primaryBg,
+      backgroundColor: white,
       body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: Container(
-        color: black.withAlpha(10),
+        color: white,
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
         child: SalomonBottomBar(
           currentIndex: _selectedIndex,

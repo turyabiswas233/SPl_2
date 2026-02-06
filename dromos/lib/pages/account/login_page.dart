@@ -1,13 +1,15 @@
-import 'package:dromos/components/custom_input.dart';
-import 'package:dromos/pages/account/signup_page.dart';
-
-// Import the new MainScreen
-import 'package:dromos/screens/main_screen.dart';
-import 'package:dromos/utils/colors.dart';
-import 'package:dromos/utils/fonts.dart';
-import 'package:dromos/utils/info.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:http/http.dart' as http;
+
+import 'package:dromos/components/custom_input.dart';
+import 'package:dromos/pages/account/signup_page.dart';
+import 'package:dromos/screens/main_screen.dart';
+import 'package:dromos/services/user_service.dart';
+import 'package:dromos/utils/colors.dart';
+import 'package:dromos/utils/fonts.dart';
+import 'package:dromos/utils/api.dart';
 
 // --- SVG Icon Data ---
 const String googleSvgData = '''
@@ -39,131 +41,144 @@ class _LoginScreenState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
 
   bool rememberMe = false;
+  bool _isLoading = false;
 
   Color pc = ConstColor.primaryColor;
   Color pbc = ConstColor.primaryBg;
   Color accentColor = ConstColor.primaryPurple;
 
-  // --- LOGIN LOGIC FUNCTION ---
-  void _handleLogin(BuildContext context) {
-    // For now, this is a "demo" login. We are not validating credentials.
-    // In a real app, you would validate _emailController.text and _passwordController.text
-    // against a database or authentication service here.
-
-    debugPrint("Attempting login...");
-    debugPrint("Email: ${_emailController.text}");
-    debugPrint("Email: ${_passwordController.text}");
-    debugPrint("Remember me: $rememberMe");
-    const String email = ConstInfo.email;
-    const String password = ConstInfo.password;
-
-    if (email == _emailController.text &&
-        password == _passwordController.text) {
-      debugPrint("Login Successful");
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text(
-              "Login Successful",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: pc, fontWeight: FontWeight.bold),
-            ),
-            content: Text("Welcome, ${ConstInfo.userName}"),
-            backgroundColor: Colors.white,
-            icon: Icon(Icons.error),
-            iconColor: accentColor,
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: Text(
-                  "Ok",
-                  style: ConstFonts.light(
-                    color: Colors.green.shade700,
-                    size: 14,
-                  ),
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          title: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: pc, fontWeight: FontWeight.bold),
+          ),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                "Got it",
+                style: ConstFonts.light(
+                  color: Colors.green.shade700,
+                  size: 14,
                 ),
               ),
-            ],
-          );
-        },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- LOGIN LOGIC FUNCTION ---
+  Future<void> _handleLogin(BuildContext context) async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      _showErrorDialog(
+        "Missing Information",
+        "Fill up both email and password to login the system",
       );
-      // settimeout
-      Future.delayed(const Duration(seconds: 2), () {
-        if (context.mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const MainScreen()),
-            (Route<dynamic> route) =>
-                false, // This predicate removes all previous routes
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final body = {
+        'email': _emailController.text.trim(),
+        'password': _passwordController.text,
+      };
+
+      final response = await http.post(
+        Uri.parse('${Api.URL}/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 5));
+
+      if (!mounted) return;
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (responseData['success'] == true) {
+          // Save session & fetch full profile
+          final token = responseData['data']?['token'] ?? '';
+          final userId = responseData['data']?['user']?['user_id'] ?? '';
+          final fullName = responseData['data']?['user']?['full_name'] ?? '';
+
+          final userService = UserService();
+          await userService.saveSession(token: token, userId: userId);
+          await userService.fetchProfile();
+
+          if (!mounted) return;
+
+          // Show success dialog then navigate
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext ctx) {
+              return AlertDialog(
+                title: Text(
+                  "Login Successful",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: pc, fontWeight: FontWeight.bold),
+                ),
+                content: Text("Welcome, $fullName"),
+                backgroundColor: Colors.white,
+                icon: const Icon(Icons.check_circle),
+                iconColor: Colors.green,
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                            builder: (context) => const MainScreen()),
+                        (Route<dynamic> route) => false,
+                      );
+                    },
+                    child: Text(
+                      "Continue",
+                      style: ConstFonts.light(
+                        color: Colors.green.shade700,
+                        size: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        } else {
+          _showErrorDialog(
+            "Login Failed",
+            responseData['message'] ?? "Invalid credentials. Please try again.",
           );
         }
-      });
-    } else if (_emailController.text.isEmpty ||
-        _passwordController.text.isEmpty) {
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            backgroundColor: Colors.white,
-            title: Text(
-              "Login Attempt Failed",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: pc, fontWeight: FontWeight.bold),
-            ),
-            content: Text(
-              "Fill up both email and password to login the system",
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  debugPrint("Missing fields");
-                  Navigator.of(context).pop();
-                },
-                child: Text(
-                  "Got it",
-                  style: ConstFonts.light(
-                    color: Colors.green.shade700,
-                    size: 14,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+      } else {
+        _showErrorDialog(
+          "Login Failed",
+          responseData['message'] ??
+              "Server error (${response.statusCode}). Please try again.",
+        );
+      }
+    } catch (e) {
+      debugPrint('Login error: $e');
+      if (!mounted) return;
+      _showErrorDialog(
+        "Connection Error",
+        "Could not connect to server. Please check your internet connection and try again.",
       );
-    } else {
-      debugPrint("Login Failed");
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text(
-              "Login Attempt Failed",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: pc, fontWeight: FontWeight.bold),
-            ),
-            content: Text("Invalid Credentials. Please try again."),
-            backgroundColor: pbc,
-            icon: Icon(Icons.error),
-            iconColor: accentColor,
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: Text(
-                  "Close",
-                  style: ConstFonts.light(color: Colors.red, size: 14),
-                ),
-              ),
-            ],
-          );
-        },
-      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
-    return;
   }
 
   @override
@@ -351,8 +366,7 @@ class _LoginScreenState extends State<LoginPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    // Call the _handleLogin function when pressed
-                    onPressed: () => _handleLogin(context),
+                    onPressed: _isLoading ? null : () => _handleLogin(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accentColor,
                       padding: const EdgeInsets.symmetric(vertical: 14.0),
@@ -360,21 +374,30 @@ class _LoginScreenState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(12.0),
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      spacing: 10,
-                      children: [
-                        const Text(
-                          "Login",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600, // poppins-semibold
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            spacing: 10,
+                            children: [
+                              const Text(
+                                "Login",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Icon(Icons.login, color: pbc),
+                            ],
                           ),
-                        ),
-                        Icon(Icons.login, color: pbc),
-                      ],
-                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
