@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';
 import 'package:flutter/material.dart';
@@ -49,6 +47,13 @@ class _CustomTextFieldState extends State<CustomInput> {
   @override
   Widget build(BuildContext context) {
     return TextFormField(
+      autofillHints: widget.isPassword
+          ? [AutofillHints.password]
+          : widget.title.toLowerCase() == "email"
+          ? [AutofillHints.email]
+          : widget.title == "Phone"
+          ? [AutofillHints.telephoneNumber]
+          : null,
       controller: widget.controller,
       obscureText: widget.isPassword,
       textCapitalization: TextCapitalization.words,
@@ -66,17 +71,11 @@ class _CustomTextFieldState extends State<CustomInput> {
         fillColor: Colors.white.withAlpha(13),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12.0),
-          borderSide: BorderSide(
-            color: pc.withAlpha(50),
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: pc.withAlpha(50), width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12.0),
-          borderSide: BorderSide(
-            color: pc.withAlpha(50),
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: pc.withAlpha(50), width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12.0),

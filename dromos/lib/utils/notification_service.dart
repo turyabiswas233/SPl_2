@@ -1,14 +1,16 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:dromos/utils/colors.dart';
-class NotiService {
+
+class NotificationService {
   final notificationPlugin = FlutterLocalNotificationsPlugin();
 
   bool _isInitialized = false;
+
   bool get isInitialized => _isInitialized;
 
   // initialize notification settings
-  Future<void> initNoti() async {
+  Future<void> initNotification() async {
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
     );
@@ -16,7 +18,8 @@ class NotiService {
     const initSettings = InitializationSettings(android: androidSettings);
 
     await notificationPlugin.initialize(initSettings);
-    debugPrint("NOTI_DEBUG: Notification service initialized");
+
+    debugPrint("\x1B[35mNOTIFICATION_DEBUG: Notification service initialized\x1B[0m");
     _isInitialized = true;
   }
 
@@ -37,14 +40,20 @@ class NotiService {
 
   // show notification
   Future<void> showNotification({
-    required int id,
+    required String id,
     String? title,
     String? body,
   }) async {
     debugPrint(title);
     if (!isInitialized) {
-      debugPrint("Notification service not initialized");
+      debugPrint(
+        "\x1B[31mNOTIFICATION_DEBUG: Notification service not initialized\x1B[0m",
+      );
+      await initNotification().then((_) {
+        showNotification(id: id, title: title, body: body);
+      });
+      return;
     }
-    return notificationPlugin.show(id, title, body, _notificationDetails());
+    notificationPlugin.show(id.hashCode, title, body, _notificationDetails());
   }
 }

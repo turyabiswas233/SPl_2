@@ -26,8 +26,8 @@ android {
         applicationId = "com.example.dromos"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 31
-        targetSdk = 34
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.compileSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -54,9 +54,5 @@ flutter {
 
 dependencies {
     // Enable core library desugaring runtime implementations for Java API desugaring
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-}
-
-flutter {
-    source = "../.."
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

@@ -21,24 +21,23 @@ class Fonts {
   Fonts(this.name, this.weight);
 }
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class DefaultHomeScreen extends StatelessWidget {
+  const DefaultHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return _HomeScreen(context);
+    return _DefaultPage(context);
   }
 }
 
-class _HomeScreen extends HomeScreen {
+class _DefaultPage extends DefaultHomeScreen {
   final BuildContext context;
 
-  _HomeScreen(this.context);
+  _DefaultPage(this.context);
 
-  Color pc = ConstColor.primaryColor;
-  Color pbc = ConstColor.primaryBg;
-  Color secondaryColor = ConstColor.primaryPurple;
-
+  final Color pc = ConstColor.primaryColor;
+  final Color pbc = ConstColor.primaryBg;
+  final Color secondaryColor = ConstColor.primaryPurple;
 
   late final List<SizedBox> buttons = [
     SizedBox(

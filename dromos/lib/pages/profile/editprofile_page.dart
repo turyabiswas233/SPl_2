@@ -1,6 +1,10 @@
+import 'package:dromos/services/ocr_service.dart';
 import 'package:dromos/services/user_service.dart';
+import 'package:dromos/utils/fonts.dart';
+import 'package:dromos/utils/id_card_parser.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/utils/colors.dart';
+import 'package:image_picker/image_picker.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -18,18 +22,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
   static const Color accentColor = ConstColor.primaryPurple;
   static const Color fColor = ConstColor.primaryColor;
   static const Color bColor = ConstColor.primaryBg;
-  static const Color maleColor = Colors.lightBlue;
-  static const Color femaleColor = Colors.purpleAccent;
 
   late final TextEditingController _fullNameCtrl;
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _deptCtrl;
   late final TextEditingController _hallCtrl;
+  late final OcrService _ocrService;
   String _selectedGender = '';
 
   @override
   void initState() {
     super.initState();
+    _ocrService = OcrService();
     final user = _userService.currentUser;
     _fullNameCtrl = TextEditingController(text: user.fullName);
     _phoneCtrl = TextEditingController(text: user.phoneNumber);
@@ -44,6 +48,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   void dispose() {
+    _ocrService.dispose();
     _fullNameCtrl.dispose();
     _phoneCtrl.dispose();
     _deptCtrl.dispose();
@@ -181,51 +186,223 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   // ── Profile Header ──────────────────────────────────────────────────────
-
   Widget _buildProfileHeader() {
+    Color pc = ConstColor.primaryColor;
+    Color accentColor = ConstColor.primaryPurple;
+
     final user = _userService.currentUser;
-    final isVerified = user.verificationStatus.toLowerCase() == 'verified';
-    Color genderColor = user.gender.toLowerCase() == 'male'
-        ? maleColor
-        : femaleColor;
+    void showErrorDialog(String message, List<String>? tips) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            title: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Scanning Failed',
+                    style: ConstFonts.bold(size: 18, color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(message, style: ConstFonts.normal(size: 14, color: pc)),
+                  if (tips != null && tips.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'Tips for better scanning:',
+                      style: ConstFonts.bold(size: 14, color: accentColor),
+                    ),
+                    const SizedBox(height: 8),
+                    ...tips.map(
+                      (tip) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(
+                          tip,
+                          style: ConstFonts.normal(size: 13, color: pc),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                style: TextButton.styleFrom(foregroundColor: ConstColor.error),
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Fill Manually',
+                  style: ConstFonts.normal(size: 14, color: ConstColor.error),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
+    Future<void> scanBothSides(ImageSource source) async {
+      try {
+        // Scan back side
+        final backImagePath = await _ocrService.scanImageOnly(source: source);
+
+        if (backImagePath == null) {
+          if (mounted) {
+            showErrorDialog('No image captured for back side', [
+              'Please try again and capture the back side of your ID card',
+            ]);
+          }
+          return;
+        }
+        setState(() {
+          _isLoading = true;
+        });
+        // Process back side
+        await _ocrService.processImageForUniqueCode(
+          backImagePath,
+          "unique id check",
+        );
+
+        IdCardParser.isValidUniqueCode(
+          UserService().currentUser.registrationNumber,
+        ).then((isValid) {
+          if (isValid) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('ID card verified successfully!'),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                ),
+              ),
+            );
+            _refreshProfile();
+          } else {
+            if (mounted) {
+              showErrorDialog('Invalid Unique ID extracted from the card', [
+                'Please ensure you are scanning the back side of a valid DU ID card',
+                'Try adjusting the distance and lighting for better results',
+              ]);
+            }
+          }
+        });
+      } catch (e) {
+        if (mounted) {
+          showErrorDialog('Unexpected error: ${e.toString()}', [
+            'Please try again or fill the form manually',
+          ]);
+        }
+        setState(() {
+          _isLoading = false;
+        });
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
+
+    Future<void> promptScanIdCard() async {
+      final result = await showDialog<String?>(
+        context: context,
+        barrierDismissible: true,
+        animationStyle: AnimationStyle(
+          curve: Curves.easeInOut,
+          duration: const Duration(milliseconds: 300),
+        ),
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+
+            title: Text(
+              'Scan ID Card',
+              style: ConstFonts.bold(size: 20, color: accentColor),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Please scan back side of your DU ID card to get student Unique Id.',
+                  style: ConstFonts.normal(size: 14, color: pc),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Choose scanning method:',
+                  style: ConstFonts.bold(size: 13, color: accentColor),
+                ),
+              ],
+            ),
+            actions: [
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).pop('gallery'),
+                icon: const Icon(Icons.photo_library),
+                label: Text(
+                  'Upload Image',
+                  style: ConstFonts.normal(size: 14, color: accentColor),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: accentColor,
+                  backgroundColor: Colors.white,
+                  side: BorderSide(color: accentColor),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).pop('camera'),
+                icon: const Icon(Icons.camera_alt),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: accentColor,
+                  backgroundColor: Colors.white,
+                  side: BorderSide(color: accentColor),
+                ),
+                label: Text(
+                  'Use Camera',
+                  style: ConstFonts.normal(size: 14, color: accentColor),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  // exit ocr card
+                  Navigator.of(context).pop();
+                },
+                label: Text(
+                  'Cancel',
+                  style: ConstFonts.normal(size: 14, color: Colors.white),
+                ),
+                icon: const Icon(Icons.close, color: Colors.white),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accentColor.withAlpha(230),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (result != null && mounted) {
+        if (result == 'camera') {
+          await scanBothSides(ImageSource.camera);
+        } else if (result == 'gallery') {
+          await scanBothSides(ImageSource.gallery);
+        }
+      }
+    }
 
     return Column(
       children: [
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            CircleAvatar(
-              radius: 48,
-              backgroundColor: genderColor.withAlpha(30),
-              child: Icon(
-                user.gender == 'male'
-                    ? Icons.person_rounded
-                    : Icons.person_2_rounded,
-                size: 50,
-                color: genderColor,
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: bColor,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(25),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Icon(
-                isVerified ? Icons.verified_rounded : Icons.pending_outlined,
-                size: 22,
-                color: isVerified ? Colors.green : Colors.orange,
-              ),
-            ),
-          ],
-        ),
+        Stack(alignment: Alignment.bottomRight, children: [user.avatar()]),
         const SizedBox(height: 12),
         Text(
           user.fullName.isNotEmpty ? user.fullName : 'User',
@@ -236,25 +413,35 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
         ),
         const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: isVerified
-                ? Colors.green.withAlpha(25)
-                : Colors.orange.withAlpha(25),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            isVerified ? 'Verified' : 'Unverified',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isVerified
-                  ? Colors.green.shade700
-                  : Colors.orange.shade700,
+        if (!user.isVerified)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.orangeAccent.withAlpha(50),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              "Click the tag below to verify your account",
+              style: TextStyle(fontSize: 12),
             ),
           ),
-        ),
+        if (!user.isVerified)
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.all(0),
+            ),
+            onPressed: () async {
+              debugPrint("hi");
+              // from service/ocr_service.dart get student unique id and send to verification page
+              await promptScanIdCard();
+            },
+            child: user.verificationTag,
+          )
+        else
+          user.verificationTag,
       ],
     );
   }
