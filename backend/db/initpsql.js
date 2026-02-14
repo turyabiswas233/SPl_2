@@ -13,7 +13,7 @@ async function initDB() {
 
     } catch (error) {
         // Log error but don't crash - tables might already exist
-        console.warn('PostgreSQL init warning (this is OK if tables already exist):', error.message);
+        console.warn('PostgreSQL init warning (this is OK if tables already exist):', error);
         // Don't exit on failure - let the server continue
     }
 }

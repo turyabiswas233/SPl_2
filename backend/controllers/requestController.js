@@ -60,6 +60,8 @@ const createRideRequest = async (req, res) => {
       data: requestResult.rows[0] 
     });
   } catch (err) {
+    console.error(err);
+
     await client.query('ROLLBACK');
     throw err;
   } finally {
@@ -142,6 +144,8 @@ const updateRideRequest = async (req, res) => {
       message: `Request ${action}ed successfully.` 
     });
   } catch (err) {
+    console.error(err);
+    
     await client.query('ROLLBACK');
     throw err;
   } finally {

@@ -3,6 +3,7 @@
  * Handles user verification and authentication
  */
 
+const { default: axios } = require("axios");
 const pool = require("../db/db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -225,18 +226,22 @@ const verifyStudentship = async (req, res) => {
   console.log("DU REG ID: " + regId, "[", studentId, "]");
 
   try {
-    const du_response = await fetch(
-      `https://academic.eis.du.ac.bd/en/studentship/${studentId}`,
+    const _duIdIdentifierUrl = "https://academic.eis.du.ac.bd/en/studentship";
+    const du_response = await axios.get(`${_duIdIdentifierUrl}/${studentId}`, {
+      responseType: "text",
+    });
+    console.log(
+      "DU RESPONSE STATUS: " + du_response?.data?.length,
+      du_response.status,
     );
-    console.log("DU RESPONSE STATUS: " + du_response?.text());
-    if (!du_response.ok) {
+    if (du_response.status !== 200) {
       return res
         .status(400)
         .json({ success: false, message: "Verification failed." });
     }
 
     const findStudentQuery = `
-      SELECT DISTINCT name, department FROM students WHERE registration_number = $1;
+      SELECT DISTINCT * FROM users WHERE registration_number = $1;
     `;
     const query = `
       UPDATE users SET verification_status = $2 WHERE registration_number = $1
@@ -251,17 +256,21 @@ const verifyStudentship = async (req, res) => {
         error: "Student data not found for the provided registration number",
       });
     }
+    const text = du_response.data;
+    console.log(
+      `Verification Text: ${text?.toLocaleLowerCase().includes("current student") ? "YES" : "NO"}`,
+    );
     const isVerified =
-      (await du_response.text()).match(regId) &&
-      (await du_response.text()).match(studentDataResult.rows[0].name) &&
-      (await du_response.text()).match(studentDataResult.rows[0].department)
-        ? "VERIFIED"
-        : "NOT VERIFIED";
+      text?.toLocaleLowerCase().includes(regId) &&
+      text?.toLocaleLowerCase().includes("current student")
+        ? "verified"
+        : "unverified";
     const dbResult = await pool.query(query, [regId, isVerified]);
 
     return res.status(200).json({
       success: true,
       data: dbResult.rows[0],
+      isVerified: isVerified,
     });
   } catch (error) {
     console.error("Error verifying studentship:", error);

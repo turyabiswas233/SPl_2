@@ -49,6 +49,8 @@ const createSOSAlert = async (req, res) => {
       data: alertResult.rows[0] 
     });
   } catch (err) {
+    console.error(err);
+
     await client.query('ROLLBACK');
     throw err;
   } finally {
