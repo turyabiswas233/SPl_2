@@ -1,8 +1,6 @@
-import 'package:dromos/components/select_box.dart';
 import 'package:dromos/pages/account/signup_page2.dart';
 import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';
-import 'package:dromos/utils/id_card_parser.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/components/custom_input.dart';
 import 'package:dromos/services/ocr_service.dart';
@@ -29,7 +27,6 @@ class _SignupScreenState extends State<SignupPage> {
   final TextEditingController _hallController = TextEditingController();
   final TextEditingController _sessionController = TextEditingController();
 
-  bool _hasScannedId = false;
   bool _isScanning = false;
 
   // OCR Service instance
@@ -164,7 +161,6 @@ class _SignupScreenState extends State<SignupPage> {
       if (mounted && frontResult.success && frontResult.data != null) {
         _fillFormWithIdCardInfo(frontResult.data!);
         setState(() {
-          _hasScannedId = true;
           _isScanning = false;
         });
       } else if (mounted) {
@@ -186,72 +182,6 @@ class _SignupScreenState extends State<SignupPage> {
         ]);
       }
     }
-  }
-
-  Future<String?> _showScanBackSideDialog() async {
-    return showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'Scan Back Side',
-            style: ConstFonts.bold(size: 18, color: accentColor),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Scan back side of your ID card?\n\n(Optional - for verification purposes)',
-                style: ConstFonts.normal(size: 14, color: pc),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Choose scanning method:',
-                style: ConstFonts.bold(size: 13, color: accentColor),
-              ),
-            ],
-          ),
-          actions: [
-            OutlinedButton.icon(
-              onPressed: () => Navigator.of(context).pop('gallery'),
-              icon: const Icon(Icons.photo_library),
-              label: Text(
-                'Upload Image',
-                style: ConstFonts.normal(size: 14, color: accentColor),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: accentColor,
-                backgroundColor: Colors.white,
-                side: BorderSide(color: accentColor),
-              ),
-            ),
-            OutlinedButton.icon(
-              onPressed: () => Navigator.of(context).pop('camera'),
-              icon: const Icon(Icons.camera_alt),
-              label: Text(
-                'Use Camera',
-                style: ConstFonts.normal(size: 14, color: accentColor),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: accentColor,
-                backgroundColor: Colors.white,
-                side: BorderSide(color: accentColor),
-              ),
-            ),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.of(context).pop('skip'),
-              icon: const Icon(Icons.skip_next, color: Colors.white),
-              label: Text(
-                'Skip',
-                style: ConstFonts.normal(size: 14, color: Colors.white),
-              ),
-              style: ElevatedButton.styleFrom(backgroundColor: accentColor),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _showErrorDialog(String message, List<String>? tips) {

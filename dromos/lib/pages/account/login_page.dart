@@ -1,6 +1,6 @@
 import 'dart:convert';
+import 'package:dromos/utils/notification_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:dromos/components/custom_input.dart';
@@ -64,15 +64,21 @@ class _LoginScreenState extends State<LoginPage> {
               onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 "Got it",
-                style: ConstFonts.light(
-                  color: Colors.green.shade700,
-                  size: 14,
-                ),
+                style: ConstFonts.light(color: Colors.green.shade700, size: 14),
               ),
             ),
           ],
         );
       },
+    );
+  }
+
+  Future<void> _navigateToMainScreen() async {
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const MainScreen()),
+      (Route<dynamic> route) => false,
     );
   }
 
@@ -94,11 +100,13 @@ class _LoginScreenState extends State<LoginPage> {
         'password': _passwordController.text,
       };
 
-      final response = await http.post(
-        Uri.parse('${Api.URL}/auth/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .post(
+            Uri.parse('${Api.url}/auth/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (!mounted) return;
 
@@ -114,53 +122,33 @@ class _LoginScreenState extends State<LoginPage> {
           final userService = UserService();
           await userService.saveSession(token: token, userId: userId);
           await userService.fetchProfile();
-
-          if (!mounted) return;
-
-          // Show success dialog then navigate
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext ctx) {
-              return AlertDialog(
-                title: Text(
-                  "Login Successful",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: pc, fontWeight: FontWeight.bold),
-                ),
-                content: Text("Welcome, $fullName"),
-                backgroundColor: Colors.white,
-                icon: const Icon(Icons.check_circle),
-                iconColor: Colors.green,
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(ctx).pop();
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                            builder: (context) => const MainScreen()),
-                        (Route<dynamic> route) => false,
-                      );
-                    },
-                    child: Text(
-                      "Continue",
-                      style: ConstFonts.light(
-                        color: Colors.green.shade700,
-                        size: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
+          NotificationService().showNotification(
+            id: "login_success",
+            title: "Login Successful",
+            body: "Welcome back, $fullName!",
           );
+
+          // Navigate to main screen
+          _navigateToMainScreen();
         } else {
+          NotificationService().showNotification(
+            id: "login_faile",
+            title: "Login Failed",
+            body:
+                "Could not connect to server. Please check your internet connection and try again.",
+          );
           _showErrorDialog(
             "Login Failed",
             responseData['message'] ?? "Invalid credentials. Please try again.",
           );
         }
       } else {
+        NotificationService().showNotification(
+          id: "login_faile",
+          title: "Login Failed",
+          body:
+              "Could not connect to server. Please check your internet connection and try again.",
+        );
         _showErrorDialog(
           "Login Failed",
           responseData['message'] ??
@@ -169,6 +157,7 @@ class _LoginScreenState extends State<LoginPage> {
       }
     } catch (e) {
       debugPrint('Login error: $e');
+
       if (!mounted) return;
       _showErrorDialog(
         "Connection Error",
@@ -451,70 +440,6 @@ class _LoginScreenState extends State<LoginPage> {
           ),
         ),
       ),
-    );
-  }
-}
-
-// ... (Your helper widgets _SocialLoginButton and _OrDivider remain the same)
-// Helper Widget for Social Login Buttons (like your GoogleLoginBtn)
-class _SocialLoginButton extends StatelessWidget {
-  final String text;
-  final String svgData;
-  final VoidCallback onTap;
-
-  const _SocialLoginButton({
-    required this.text,
-    required this.svgData,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 4.0,
-      color: Colors.white,
-      shadowColor: Colors.grey.withAlpha(100),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20.0),
-        child: Container(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SvgPicture.string(svgData, height: 32.0),
-              const SizedBox(width: 16.0),
-              Text(
-                text,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Helper Widget for the "OR" Divider
-class _OrDivider extends StatelessWidget {
-  const _OrDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Expanded(child: Divider(color: Colors.grey)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Text("OR", style: TextStyle(color: Colors.grey[600])),
-        ),
-        const Expanded(child: Divider(color: Colors.grey)),
-      ],
     );
   }
 }

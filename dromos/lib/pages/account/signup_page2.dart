@@ -117,7 +117,7 @@ class _SignupPage2State extends State<SignupPage2> {
       };
 
       final response = await http.post(
-        Uri.parse('${Api.URL}/auth/register'),
+        Uri.parse('${Api.url}/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(body),
       );
@@ -193,7 +193,7 @@ class _SignupPage2State extends State<SignupPage2> {
       if (!mounted) return;
       _showErrorDialog(
         "Connection Error",
-        "Could not connect to server. Please check your internet connection and try again. Connection URL: ${Api.URL}"
+        "Could not connect to server. Please check your internet connection and try again."
       );
     } finally {
       if (mounted) {

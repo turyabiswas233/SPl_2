@@ -7,15 +7,21 @@ ThemeData appTheme() {
   Color pc = ConstColor.primaryColor;
   Color pbc = ConstColor.primaryBg;
   Color accentColor = ConstColor.primaryPurple;
-
+ 
   return ThemeData(
     useSystemColors: false,
     appBarTheme: AppBarTheme(
       actionsIconTheme: IconThemeData(color: accentColor),
       backgroundColor: Colors.transparent,
       foregroundColor: pc,
-      systemOverlayStyle: SystemUiOverlayStyle.dark,
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarBrightness: Brightness.dark,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+        
     ),
+    colorScheme: ColorScheme.fromSeed(seedColor: pc),
     fontFamily: GoogleFonts.poppins().fontFamily,
     fontFamilyFallback: GoogleFonts.poppins().fontFamilyFallback,
     floatingActionButtonTheme: FloatingActionButtonThemeData(
