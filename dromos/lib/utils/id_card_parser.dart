@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:dromos/services/user_service.dart';
 import 'package:flutter/rendering.dart';
 import 'package:http/http.dart' as http;
 import 'package:dromos/models/id_card_info.dart';

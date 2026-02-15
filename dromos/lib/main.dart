@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:dromos/pages/home/default_page.dart';
+import 'package:dromos/pages/no_internet_page.dart';
 import 'package:dromos/screens/main_screen.dart';
 import 'package:dromos/services/user_service.dart';
 import 'package:dromos/utils/colors.dart';
@@ -9,6 +10,7 @@ import 'package:dromos/utils/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 void main() async {
   SystemChrome.setSystemUIOverlayStyle(
@@ -63,49 +65,111 @@ Future<void> _requestPermissions() async {
   }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final Widget defaultHome;
 
   const MyApp({super.key, required this.defaultHome});
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    _startSplashTimer();
+    initConnection();
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      _isInternetAvailable,
+    );
+    super.initState();
+  }
+
+  bool _isInternetConnected = false;
+
+  late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
+
+  Future<void> initConnection() async {
+    List<ConnectivityResult> results;
+
+    try {
+      debugPrint("Retrying connection...");
+      results = await Connectivity().checkConnectivity();
+    } catch (e) {
+      debugPrint("Couldn't Check Connectivity Status: $e");
+
+      results = [ConnectivityResult.none];
+    }
+    return _isInternetAvailable(results);
+  }
+
+  Future<void> _isInternetAvailable(List<ConnectivityResult> results) async {
+    setState(() {
+      _isInternetConnected =
+          results.contains(ConnectivityResult.mobile) ||
+          results.contains(ConnectivityResult.wifi);
+    });
+  }
+
+  void _retryConnection() {
+    initConnection();
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription.cancel();
+    super.dispose();
+  }
+
+  bool _timeoutSplash = false;
+
+  Future<void> _startSplashTimer() async {
+    await Future.delayed(const Duration(seconds: 3));
+    setState(() {
+      _timeoutSplash = true;
+    });
+  }
+
+  Widget _getInitialScreen() {
+    if (!_timeoutSplash) {
+      return const SplashScreen();
+    }
+
+    if (!_isInternetConnected) {
+      return NoInternetConnectionScreen(onRetry: _retryConnection);
+    }
+
+    return widget.defaultHome;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'Dromos - Enjoy the ride',
       theme: appTheme(),
-      home: SplashScreen(defaultHome: defaultHome),
+      home: _getInitialScreen(),
     );
   }
 }
 
-class SplashScreen extends StatefulWidget {
-  final Widget defaultHome;
-  const SplashScreen({super.key, required this.defaultHome});
-
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Navigate to Home after 3 seconds
-    Timer(const Duration(seconds: 3), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => widget.defaultHome),
-      );
-    });
-  }
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: Colors.white,
       body: Center(
-        child: Image(image: AssetImage('assets/logo.png'), width: 150),
+        child: Column(
+          mainAxisAlignment: .center,
+          children: [
+            Image(image: AssetImage('assets/logo.png'), width: 150),
+            CircularProgressIndicator(
+              color: ConstColor.primaryPurple,
+              trackGap: 3,
+            ),
+          ],
+        ),
       ),
     );
   }

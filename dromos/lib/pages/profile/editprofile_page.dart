@@ -276,16 +276,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           UserService().currentUser.registrationNumber,
         ).then((isValid) {
           if (isValid) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('ID card verified successfully!'),
-                backgroundColor: Colors.green,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(10)),
-                ),
-              ),
-            );
+            
             _refreshProfile();
           } else {
             if (mounted) {

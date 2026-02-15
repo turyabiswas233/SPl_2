@@ -36,6 +36,8 @@ dependencies:
   geolocator: ^14.0.2
   geocoding: ^4.0.0
   flutter_native_splash: ^2.4.7
+  lottie: ^3.3.2
+  connectivity_plus: ^6.1.5
 
 dev_dependencies:
   flutter_test:
@@ -53,6 +55,7 @@ flutter:
   assets:
     - assets/cars/
     - assets/logo.png
+    - assets/no_internet.json
 
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
