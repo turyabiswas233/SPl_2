@@ -13,9 +13,10 @@ const {
 } = require('../../controllers/rideController');
 const { validateRideCreation, validateUUID } = require('../../middleware/validators');
 const asyncHandler = require('../../middleware/asyncHandler');
+const { protect } = require('../../middleware/auth');
 
 // @route   POST /api/v1/rides
-router.post('/', validateRideCreation, asyncHandler(createRide));
+router.post('/', protect, validateRideCreation, asyncHandler(createRide));
 
 // @route   GET /api/v1/rides
 router.get('/', asyncHandler(getRides));

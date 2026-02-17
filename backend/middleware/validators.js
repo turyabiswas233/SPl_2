@@ -40,7 +40,6 @@ const validateLogin = (req, res, next) => {
 
 const validateRideCreation = (req, res, next) => {
   const {
-    initiator_id,
     start_location,
     start_lat,
     start_lng,
@@ -50,7 +49,7 @@ const validateRideCreation = (req, res, next) => {
     max_seats,
   } = req.body;
 
-  if (!initiator_id || !start_location || !destination || !max_seats) {
+  if (!start_location || !destination || !max_seats) {
     return res.status(400).json({
       success: false,
       error: "Missing required fields",

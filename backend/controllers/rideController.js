@@ -3,26 +3,38 @@
  * Handles ride creation, browsing, and management
  */
 
-const pool = require('../db/db');
-const crypto = require('crypto');
-const { v4: uuidv4 } = require('uuid');
+const pool = require("../db/db");
+const crypto = require("crypto");
+const { v4: uuidv4 } = require("uuid");
 
 // @desc    Create a new ride
 // @route   POST /api/rides
 // @access  Private
 const createRide = async (req, res) => {
-  const { initiator_id, start_location, start_lat, start_lng, destination, dest_lat, dest_lng, max_seats } = req.body;
-
+  const {
+    start_location,
+    start_lat,
+    start_lng,
+    destination,
+    dest_lat,
+    dest_lng,
+    max_seats,
+  } = req.body;
+  const initiator_id = req.user.userId;
+  console.log("_______________________________________________");
+  console.log("INITIATOR ID:", initiator_id);
+  console.log("_______________________________________________");
   const qrCode = crypto.randomBytes(16).toString("hex");
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  
+
   const rideId = uuidv4();
-  const participantId = uuidv4();
+  const participantId = initiator_id;
+  const ride_participant_id = uuidv4();
   const notificationId = uuidv4();
 
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
 
     // Insert RIDE
     const rideQuery = `
@@ -31,29 +43,39 @@ const createRide = async (req, res) => {
       RETURNING *;
     `;
     const rideResult = await client.query(rideQuery, [
-      rideId, initiator_id, start_location, start_lat, start_lng, destination, dest_lat, dest_lng, qrCode, otp, max_seats
+      rideId,
+      initiator_id,
+      start_location,
+      start_lat,
+      start_lng,
+      destination,
+      dest_lat,
+      dest_lng,
+      qrCode,
+      otp,
+      max_seats,
     ]);
 
     // Insert PARTICIPANT
     await client.query(
-      `INSERT INTO ride_participants (participant_id, ride_id, user_id, has_met, met_at) VALUES ($1, $2, $3, TRUE, NOW())`,
-      [participantId, rideId, initiator_id]
+      `INSERT INTO ride_participants (ride_participant_id, participant_id, ride_id, user_id, has_met, met_at) VALUES ($1, $2, $3, $4, TRUE, NOW())`,
+      [ride_participant_id, participantId, rideId, initiator_id],
     );
 
     // Create notification
     const notificationMessage = `Your ride from ${start_location} to ${destination} has been created successfully.`;
     await client.query(
       `INSERT INTO notifications (notification_id, user_id, ride_id, message) VALUES ($1, $2, $3, $4)`,
-      [notificationId, initiator_id, rideId, notificationMessage]
+      [notificationId, initiator_id, rideId, notificationMessage],
     );
 
-    await client.query('COMMIT');
-    res.status(201).json({ 
-      success: true, 
-      data: rideResult.rows[0] 
+    await client.query("COMMIT");
+    res.status(201).json({
+      success: true,
+      data: rideResult.rows[0],
     });
   } catch (err) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw err;
   } finally {
     client.release();
@@ -65,7 +87,7 @@ const createRide = async (req, res) => {
 // @access  Public
 const getRides = async (req, res) => {
   const { gender_filter, min_seats, destination } = req.query;
-  
+
   let query = `
     SELECT r.*, u.full_name as initiator_name, 
            (SELECT COUNT(*) FROM ride_participants WHERE ride_id = r.ride_id) as current_passengers
@@ -76,7 +98,7 @@ const getRides = async (req, res) => {
   const params = [];
   let paramCount = 1;
 
-  if (gender_filter && gender_filter !== 'any') {
+  if (gender_filter && gender_filter !== "any") {
     query += ` AND r.preferred_gender IN ($${paramCount}, 'any')`;
     params.push(gender_filter);
     paramCount++;
@@ -97,10 +119,10 @@ const getRides = async (req, res) => {
   query += ` ORDER BY r.created_at DESC`;
 
   const result = await pool.query(query, params);
-  res.status(200).json({ 
-    success: true, 
+  res.status(200).json({
+    success: true,
     count: result.rows.length,
-    data: result.rows 
+    data: result.rows,
   });
 };
 
@@ -109,19 +131,19 @@ const getRides = async (req, res) => {
 // @access  Public
 const getRideById = async (req, res) => {
   const { ride_id } = req.params;
-  
+
   const rideResult = await pool.query(
     `SELECT r.*, u.full_name as initiator_name, u.phone_number as initiator_phone
      FROM rides r
      JOIN users u ON r.initiator_id = u.user_id
      WHERE r.ride_id = $1`,
-    [ride_id]
+    [ride_id],
   );
 
   if (rideResult.rows.length === 0) {
-    return res.status(404).json({ 
-      success: false, 
-      message: "Ride not found." 
+    return res.status(404).json({
+      success: false,
+      message: "Ride not found.",
     });
   }
 
@@ -130,15 +152,15 @@ const getRideById = async (req, res) => {
      FROM ride_participants rp
      JOIN users u ON rp.user_id = u.user_id
      WHERE rp.ride_id = $1`,
-    [ride_id]
+    [ride_id],
   );
 
   res.status(200).json({
     success: true,
     data: {
       ride: rideResult.rows[0],
-      participants: participantsResult.rows
-    }
+      participants: participantsResult.rows,
+    },
   });
 };
 
@@ -151,43 +173,45 @@ const completeRide = async (req, res) => {
 
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
 
     // Verify initiator
     const rideCheck = await pool.query(
       `SELECT * FROM rides WHERE ride_id = $1 AND initiator_id = $2`,
-      [ride_id, initiator_id]
+      [ride_id, initiator_id],
     );
 
     if (rideCheck.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(403).json({ 
-        success: false, 
-        message: "Only the initiator can complete the ride." 
+      await client.query("ROLLBACK");
+      return res.status(403).json({
+        success: false,
+        message: "Only the initiator can complete the ride.",
       });
     }
 
     // Update ride status
     await client.query(
       `UPDATE rides SET status = 'completed' WHERE ride_id = $1`,
-      [ride_id]
+      [ride_id],
     );
 
     // Calculate split fare if provided
     if (total_fare) {
       const participantsResult = await client.query(
         `SELECT user_id FROM ride_participants WHERE ride_id = $1`,
-        [ride_id]
+        [ride_id],
       );
 
-      const splitAmount = (total_fare / participantsResult.rows.length).toFixed(2);
+      const splitAmount = (total_fare / participantsResult.rows.length).toFixed(
+        2,
+      );
 
       for (const participant of participantsResult.rows) {
         const fareId = uuidv4();
         await client.query(
           `INSERT INTO fares (fare_id, ride_id, user_id, amount)
            VALUES ($1, $2, $3, $4)`,
-          [fareId, ride_id, participant.user_id, splitAmount]
+          [fareId, ride_id, participant.user_id, splitAmount],
         );
       }
     }
@@ -195,29 +219,29 @@ const completeRide = async (req, res) => {
     // Notify all participants
     const participantsResult = await client.query(
       `SELECT user_id FROM ride_participants WHERE ride_id = $1`,
-      [ride_id]
+      [ride_id],
     );
 
     for (const participant of participantsResult.rows) {
       const notificationId = uuidv4();
-      const notificationMessage = total_fare 
+      const notificationMessage = total_fare
         ? `Trip completed! Your share: $${(total_fare / participantsResult.rows.length).toFixed(2)}. Please rate your co-passengers.`
         : `Trip completed! Please rate your co-passengers.`;
-      
+
       await client.query(
         `INSERT INTO notifications (notification_id, user_id, ride_id, message)
          VALUES ($1, $2, $3, $4)`,
-        [notificationId, participant.user_id, ride_id, notificationMessage]
+        [notificationId, participant.user_id, ride_id, notificationMessage],
       );
     }
 
-    await client.query('COMMIT');
-    res.status(200).json({ 
-      success: true, 
-      message: "Trip completed successfully." 
+    await client.query("COMMIT");
+    res.status(200).json({
+      success: true,
+      message: "Trip completed successfully.",
     });
   } catch (err) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw err;
   } finally {
     client.release();
@@ -228,5 +252,5 @@ module.exports = {
   createRide,
   getRides,
   getRideById,
-  completeRide
+  completeRide,
 };

@@ -20,7 +20,7 @@ const protect = async (req, res, next) => {
 
       // Add user info to request
       req.user = decoded;
-
+      console.log(decoded);
       next();
     } catch (error) {
       console.error('Token verification failed:', error);

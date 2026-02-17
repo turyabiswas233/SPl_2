@@ -53,7 +53,8 @@ const getUserProfile = async (req, res) => {
 // @route   GET /api/users/:user_id/ride-history
 // @access  Private
 const getUserRideHistory = async (req, res) => {
-  const { user_id } = req.params;
+  
+  const user_id = req.user.userId;
 
   const result = await pool.query(
     `SELECT r.*, u.full_name as initiator_name,

@@ -6,10 +6,10 @@
 const pool = require('../db/db');
 
 // @desc    Get user notifications
-// @route   GET /api/notifications/:user_id
+// @route   GET /api/notifications/
 // @access  Private
 const getNotifications = async (req, res) => {
-  const { user_id } = req.params;
+  const user_id  = req.user.userId;
   
   const result = await pool.query(
     `SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC`,
