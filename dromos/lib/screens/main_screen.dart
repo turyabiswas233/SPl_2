@@ -1,4 +1,6 @@
 import 'package:dromos/pages/home_page.dart';
+import 'package:dromos/pages/ride/create_ride_page.dart';
+import 'package:dromos/pages/activity/activity_page.dart';
 import 'package:flutter/material.dart';
 import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
 import 'package:dromos/pages/profile/account_page.dart';
@@ -16,14 +18,10 @@ class _MainScreenState extends State<MainScreen> {
 
   static final List<Widget> _widgetOptions = <Widget>[
     const HomePage(),
-    const Center(child: Text('Notifications Page')),
-    const Center(child: Text('Activity Page')),
+    const CreateRidePage(),
+    const ActivityPage(),
     AccountPage(),
   ];
-
-  Color black = ConstColor.primaryColor;
-  Color white = ConstColor.primaryBg;
-  Color accentColor = ConstColor.primaryPurple;
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +38,7 @@ class _MainScreenState extends State<MainScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: SalomonBottomBar(
               currentIndex: _selectedIndex,
+              curve: Curves.fastEaseInToSlowEaseOut,
               onTap: (i) => setState(() => _selectedIndex = i),
               itemPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -52,8 +51,8 @@ class _MainScreenState extends State<MainScreen> {
                   selectedColor: ConstColor.primaryPurple,
                 ),
                 SalomonBottomBarItem(
-                  icon: const Icon(Icons.chat_bubble_outline),
-                  title: const Text("Chat"),
+                  icon: const Icon(Icons.add_circle_outline),
+                  title: const Text("Ride"),
                   selectedColor: ConstColor.primaryPurple,
                 ),
                 SalomonBottomBarItem(

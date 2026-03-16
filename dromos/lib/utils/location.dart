@@ -2,25 +2,47 @@ import 'package:flutter/widgets.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
-class LocationInfo {
-  String? locality;
-  String? subLocality;
-  double latitude;
-  double longitude;
+class Cord {
+  final double latitude;
+  final double longitude;
 
-  LocationInfo({
-    required this.locality,
-    required this.subLocality,
-    required this.latitude,
-    required this.longitude,
-  });  
+  const Cord({required this.latitude, required this.longitude});
 
   @override
   String toString() {
-    return 'LocationInfo{locality: $locality, subLocality: $subLocality, latitude: $latitude, longitude: $longitude}';
+    return '{Cord: {lat: $latitude, lng: $longitude}}';
+  }
+}
+
+class LocationInfo {
+  static String? name;
+  static String? locality;
+  static String? subLocality;
+  static String? isoCode;
+  static Cord? cord;
+
+  // Private constructor — not meant to be instantiated
+  LocationInfo._();
+
+  /// Singleton accessor (kept for backward compatibility)
+  static final LocationInfo _instance = LocationInfo._();
+  static LocationInfo getInstance() => _instance;
+
+  String? getName() => name;
+  String? getLocality() => locality;
+  String? getSubLocality() => subLocality;
+  String? getIsoCode() => isoCode;
+  Cord? getLocation() => cord;
+
+  @override
+  String toString() {
+    return 'LocationInfo{name: $name, locality: $locality, subLocality: $subLocality, $cord}';
   }
 
-  static Future<LocationInfo> resolveCurrentCity() async {
+  /// Returns true if location has already been resolved.
+  static bool get isResolved => cord != null;
+
+  static Future<void> resolveCurrentCity() async {
     LocationPermission permission = await Geolocator.checkPermission();
 
     if (permission == LocationPermission.denied ||
@@ -37,11 +59,7 @@ class LocationInfo {
     }
 
     final position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.best,
-        timeLimit: Duration(seconds: 5),
-        distanceFilter: 5,
-      ),
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     );
 
     final placemarks = await placemarkFromCoordinates(
@@ -53,13 +71,12 @@ class LocationInfo {
       throw Exception('Unable to resolve current city');
     }
     debugPrint('Resolved location: ${placemarks.first}');
-    LocationInfo currentLocation = LocationInfo(
-      locality: placemarks.first.locality,
-      subLocality: placemarks.first.name,
-      latitude: position.latitude,
-      longitude: position.longitude,
-    );
+    var place = placemarks.first;
 
-    return currentLocation;
+    name = place.name;
+    locality = place.locality;
+    subLocality = place.subLocality ?? place.street;
+    isoCode = place.isoCountryCode;
+    cord = Cord(latitude: position.latitude, longitude: position.longitude);
   }
 }

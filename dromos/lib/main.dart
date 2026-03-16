@@ -9,6 +9,7 @@ import 'package:dromos/utils/notification_service.dart';
 import 'package:dromos/utils/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
@@ -23,6 +24,9 @@ void main() async {
     ),
   );
   WidgetsFlutterBinding.ensureInitialized();
+
+  /// load environment variables
+  await dotenv.load(fileName: '.env.local');
 
   /// request necessary permissions before app starts
   await _requestPermissions();
@@ -124,7 +128,7 @@ class _MyAppState extends State<MyApp> {
   bool _timeoutSplash = false;
 
   Future<void> _startSplashTimer() async {
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 2));
     setState(() {
       _timeoutSplash = true;
     });
@@ -148,6 +152,7 @@ class _MyAppState extends State<MyApp> {
       title: 'Dromos - Enjoy the ride',
       theme: appTheme(),
       home: _getInitialScreen(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
