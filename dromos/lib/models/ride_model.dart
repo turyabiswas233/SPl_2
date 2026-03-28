@@ -1,3 +1,10 @@
+class RideStatus {
+  static const String open = 'open';
+  static const String inProgress = 'in_progress';
+  static const String cancelled = 'cancelled';
+  static const String completed = 'completed';
+}
+
 class RideModel {
   final String rideId;
   final String initiatorId;
@@ -31,20 +38,20 @@ class RideModel {
 
   factory RideModel.fromJson(Map<String, dynamic> json) {
     return RideModel(
-      rideId: json['ride_id'] ?? '',
-      initiatorId: json['initiator_id'] ?? '',
-      startLocation: json['start_location'] ?? '',
-      startLat: (json['start_lat'] ?? 0).toDouble(),
-      startLng: (json['start_lng'] ?? 0).toDouble(),
-      destinationName: json['destination_name'] ?? json['destination'] ?? '',
-      destLat: (json['dest_lat'] ?? 0).toDouble(),
-      destLng: (json['dest_lng'] ?? 0).toDouble(),
-      tripQrCode: json['trip_qr_code'] ?? '',
-      tripOtp: json['trip_otp'] ?? '',
-      maxSeats: json['max_seats'] ?? 4,
-      status: json['status'] ?? 'open',
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
+      rideId: json['rideId'] ?? '',
+      initiatorId: json['initiatorId'] ?? '',
+      startLocation: json['startLocation'] ?? '',
+      startLat: (json['startLat'] ?? 0).toDouble(),
+      startLng: (json['startLng'] ?? 0).toDouble(),
+      destinationName: json['destinationName'] ?? json['destination'] ?? '',
+      destLat: (json['destLat'] ?? 0).toDouble(),
+      destLng: (json['destLng'] ?? 0).toDouble(),
+      tripQrCode: json['tripQrCode'] ?? '',
+      tripOtp: json['tripOtp'] ?? '',
+      maxSeats: json['maxSeats'] ?? 4,
+      status: json['status'] ?? RideStatus.open,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
     );
   }
@@ -53,15 +60,15 @@ class RideModel {
     return {
       'ride_id': rideId,
       'initiator_id': initiatorId,
-      'start_location': startLocation,
-      'start_lat': startLat,
-      'start_lng': startLng,
-      'destination_name': destinationName,
-      'dest_lat': destLat,
-      'dest_lng': destLng,
-      'trip_qr_code': tripQrCode,
-      'trip_otp': tripOtp,
-      'max_seats': maxSeats,
+      'startLocation': startLocation,
+      'startLat': startLat,
+      'startLng': startLng,
+      'destinationName': destinationName,
+      'destLat': destLat,
+      'destLng': destLng,
+      'tripQrCode': tripQrCode,
+      'tripOtp': tripOtp,
+      'maxSeats': maxSeats,
       'status': status,
       'created_at': createdAt.toIso8601String(),
     };
@@ -70,13 +77,13 @@ class RideModel {
   /// Body format for the create ride API
   Map<String, dynamic> toCreateBody() {
     return {
-      'start_location': startLocation,
-      'start_lat': startLat,
-      'start_lng': startLng,
-      'destination': destinationName,
-      'dest_lat': destLat,
-      'dest_lng': destLng,
-      'max_seats': maxSeats,
+      'startLocation': startLocation,
+      'startLat': startLat,
+      'startLng': startLng,
+      'destinationName': destinationName,
+      'destLat': destLat,
+      'destLng': destLng,
+      'maxSeats': maxSeats,
     };
   }
 

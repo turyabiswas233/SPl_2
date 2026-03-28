@@ -1,143 +1,114 @@
-import 'dart:async';
-import 'dart:developer';
-import 'package:dromos/screens/waiting_screen.dart';
+import 'package:dromos/models/ride_model.dart';
 import 'package:dromos/utils/location.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 class MapSample extends StatefulWidget {
-  const MapSample({super.key});
+  final RideModel? ride;
+
+  const MapSample({super.key, required this.ride});
 
   @override
   State<MapSample> createState() => _MapSampleState();
 }
 
 class _MapSampleState extends State<MapSample> {
-  bool _isLoadingMap = true;
-  String? _errorMessage;
-  final Completer<GoogleMapController> _controller =
-      Completer<GoogleMapController>();
+  static const Map<String, String> _mapStyles = {
+    'Streets': 'mapbox://styles/mapbox/streets-v12',
+    'Outdoors': 'mapbox://styles/mapbox/outdoors-v12',
+    'Light': 'mapbox://styles/mapbox/light-v11',
+    'Dark': 'mapbox://styles/mapbox/dark-v11',
+    'Satellite': 'mapbox://styles/mapbox/satellite-v9',
+    'Satellite Streets': 'mapbox://styles/mapbox/satellite-streets-v12',
+    'Navigation Day': 'mapbox://styles/mapbox/navigation-day-v1',
+    'Navigation Night': 'mapbox://styles/mapbox/navigation-night-v1',
+  };
 
-  CameraPosition get _initialCameraPosition {
-    final cord = LocationInfo.cord;
-    if (cord != null) {
-      return CameraPosition(
-        target: LatLng(cord.latitude, cord.longitude),
-        zoom: 14.4746,
-      );
-    }
-    return const CameraPosition(target: LatLng(0, 0), zoom: 2);
+  String _currentStyle = _mapStyles['Navigation Day']!;
+
+  MapboxMap? mapboxMap;
+  PolylineAnnotationManager? polylineAnnotationManager;
+
+  Future<void> _onMapCreated(MapboxMap map) async {
+    mapboxMap = map;
+    mapboxMap?.compass.updateSettings(CompassSettings(enabled: false));
+    mapboxMap?.scaleBar.updateSettings(ScaleBarSettings(enabled: false));
+
+    polylineAnnotationManager = await map.annotations
+        .createPolylineAnnotationManager();
+    await _drawRoute();
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _initLocation();
+  Future<void> _drawRoute() async {
+    // your existing route drawing logic
   }
 
-  Future<void> _initLocation() async {
-    try {
-      // If location is already resolved, skip fetching
-      if (LocationInfo.cord == null) {
-        await LocationInfo.resolveCurrentCity();
-      }
-      log('Location resolved: ${LocationInfo.cord}');
-    } catch (e) {
-      log('Failed to resolve location: $e');
-      if (mounted) {
-        setState(() => _errorMessage = e.toString());
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoadingMap = false);
-      }
-    }
+  void _changeStyle(String styleUri) {
+    setState(() {
+      _currentStyle = styleUri;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoadingMap) {
-      return const WaitingOverlay(captionText: "Loading map...");
-    }
-
-    if (_errorMessage != null) {
-      return Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.location_off, size: 48, color: Colors.grey),
-                const SizedBox(height: 16),
-                Text(
-                  'Could not fetch location',
-                  style: Theme.of(context).textTheme.titleMedium,
+    return Column(
+      children: [
+        // Theme buttons
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: _mapStyles.entries.map((entry) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: ElevatedButton(
+                  onPressed: () => _changeStyle(entry.value),
+                  child: Text(entry.key),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  _errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _isLoadingMap = true;
-                      _errorMessage = null;
-                    });
-                    _initLocation();
-                  },
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
-                ),
-              ],
-            ),
+              );
+            }).toList(),
           ),
         ),
-      );
-    }
-
-    return Scaffold(
-      body: GoogleMap(
-        mapType: MapType.normal,
-        initialCameraPosition: _initialCameraPosition,
-        myLocationEnabled: true,
-        myLocationButtonEnabled: false,
-
-        zoomControlsEnabled: false,
-        onMapCreated: (GoogleMapController controller) {
-          _controller.complete(controller);
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _goToCurrentLocation,
-        child: const Icon(Icons.my_location),
-      ),
+        Expanded(
+          child: Stack(
+            children: [
+              MapWidget(
+                key: const ValueKey('mapWidget'),
+                styleUri: _currentStyle,
+                onMapCreated: _onMapCreated,
+                cameraOptions: CameraOptions(
+                  center: Point(
+                    coordinates: Position(
+                      LocationInfo.cord!.longitude,
+                      LocationInfo.cord!.latitude,
+                    ),
+                  ),
+                  zoom: 14,
+                  pitch: 0,
+                  bearing: 0,
+                ),
+              ),
+              Align(
+                alignment: Alignment.topCenter,
+                child: IgnorePointer(
+                  child: Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.white.withAlpha(210),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
-  }
-
-  Future<void> _goToCurrentLocation() async {
-    LocationInfo.resolveCurrentCity().catchError((e) {
-      log('Failed to resolve location: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error fetching location: $e')));
-      }
-    });
-    final cord = LocationInfo.cord;
-    if (cord == null) {
-      log('Location is null, cannot move camera');
-      return;
-    }
-
-    final GoogleMapController controller = await _controller.future;
-    final position = CameraPosition(
-      target: LatLng(cord.latitude, cord.longitude),
-      zoom: 16,
-    );
-    await controller.animateCamera(CameraUpdate.newCameraPosition(position));
   }
 }

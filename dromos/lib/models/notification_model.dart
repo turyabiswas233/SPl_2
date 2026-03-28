@@ -1,3 +1,5 @@
+import 'package:flutter/rendering.dart';
+
 class NotificationModel {
   final String notificationId;
   final String userId;
@@ -16,14 +18,15 @@ class NotificationModel {
   }) : createdAt = createdAt ?? DateTime.now();
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    debugPrint(json.toString());
     return NotificationModel(
-      notificationId: json['notification_id'] ?? '',
-      userId: json['user_id'] ?? '',
-      rideId: json['ride_id'] ?? '',
-      message: json['message'] ?? '',
-      isRead: json['is_read'] ?? false,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
+      notificationId: json['notificationId'] ?? '',
+      userId: json['userId'] ?? '',
+      rideId: json['rideId'] ?? '',
+      message: json['messageText'] ?? '',
+      isRead: json['isRead'] ?? false,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
     );
   }

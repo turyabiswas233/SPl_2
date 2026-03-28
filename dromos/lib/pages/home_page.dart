@@ -76,6 +76,9 @@ class _HomePageState extends State<HomePage> {
         _fetchCurrentLocation();
       }
     });
+    if (user.isEmpty) {
+      UserService().logout();
+    }
   }
 
   @override
@@ -185,20 +188,6 @@ class _HomePageState extends State<HomePage> {
                                           horizontal: 12,
                                           vertical: 8,
                                         ),
-                                        shape: StadiumBorder(
-                                          side: BorderSide(
-                                            width: 2,
-                                            color:
-                                                user.gender.toLowerCase() ==
-                                                    ('female')
-                                                ? ConstColor.femaleColor
-                                                      .withAlpha(100)
-                                                : ConstColor.maleColor
-                                                      .withAlpha(100),
-                                            strokeAlign:
-                                                BorderSide.strokeAlignCenter,
-                                          ),
-                                        ), // This creates the full corner radius (pill shape)
                                       ),
                                     ),
 
@@ -224,55 +213,49 @@ class _HomePageState extends State<HomePage> {
                               ],
                             ),
                             // Notification bell + avatar
-                            Row(
+                            Stack(
                               children: [
-                                // Notification bell
-                                Stack(
-                                  children: [
-                                    IconButton(
-                                      onPressed: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                const NotificationsPage(),
-                                          ),
-                                        ).then((_) => _fetchNotifications());
-                                      },
-                                      icon: const Icon(
-                                        Icons.notifications_outlined,
-                                        color: Colors.white,
-                                        size: 20,
+                                IconButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            const NotificationsPage(),
+                                      ),
+                                    ).then((_) => _fetchNotifications());
+                                  },
+                                  icon: const Icon(
+                                    Icons.notifications_outlined,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                                if (_unreadCount > 0)
+                                  Positioned(
+                                    right: 6,
+                                    top: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      constraints: const BoxConstraints(
+                                        minWidth: 18,
+                                        minHeight: 18,
+                                      ),
+                                      child: Text(
+                                        '$_unreadCount',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        textAlign: TextAlign.center,
                                       ),
                                     ),
-                                    if (_unreadCount > 0)
-                                      Positioned(
-                                        right: 6,
-                                        top: 0,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: const BoxDecoration(
-                                            color: Colors.red,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          constraints: const BoxConstraints(
-                                            minWidth: 18,
-                                            minHeight: 18,
-                                          ),
-                                          child: Text(
-                                            '$_unreadCount',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(width: 4),
+                                  ),
                               ],
                             ),
                           ],
@@ -300,101 +283,98 @@ class _HomePageState extends State<HomePage> {
                       top: 10,
                       left: 20,
                       right: 20,
+                      bottom: 20,
                     ),
                     height: MediaQuery.of(context).size.height * 0.6,
                     decoration: const BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(40),
+                        top: Radius.circular(20),
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const SizedBox(
-                          height: 5,
-                          width: 40,
-                          child: Divider(
-                            thickness: 4,
-                            color: Colors.grey,
-                            radius: BorderRadius.all(Radius.circular(10)),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        const SizedBox(height: 25),
+                    child: SafeArea(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 10),
 
-                        // Highlight Card
-                        Container(
-                          padding: const EdgeInsets.all(15),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            gradient: LinearGradient(
-                              colors: [
-                                ConstColor.primaryPurple,
-                                ConstColor.primaryPurple.withAlpha(200),
-                              ],
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: const [
-                              Text(
-                                "Identify the closest\nvehicle",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
+                            // Highlight Card
+                            Container(
+                              padding: const EdgeInsets.all(15),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    ConstColor.primaryPurple,
+                                    ConstColor.primaryPurple.withAlpha(200),
+                                  ],
                                 ),
                               ),
-                              Icon(Icons.arrow_forward, color: Colors.white),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 25),
-
-                        // Available Near You
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: const [
-                            Text(
-                              "Available Near You",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: const [
+                                  Text(
+                                    "Identify the closest\nvehicle",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.arrow_forward,
+                                    color: Colors.white,
+                                  ),
+                                ],
                               ),
                             ),
-                            Text(
-                              "See All",
-                              style: TextStyle(color: Colors.grey),
+
+                            const SizedBox(height: 25),
+
+                            // Available Near You
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: const [
+                                Text(
+                                  "Available Near You",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  "See All",
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 15),
+                            SizedBox(
+                              height: 150,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: carImages.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 15),
+                                itemBuilder: (context, index) {
+                                  return Container(
+                                    width: 220,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(20),
+                                      image: DecorationImage(
+                                        image: carImages[index],
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                           ],
                         ),
-
-                        const SizedBox(height: 15),
-
-                        SizedBox(
-                          height: 150,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: carImages.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(width: 15),
-                            itemBuilder: (context, index) {
-                              return Container(
-                                width: 220,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
-                                  image: DecorationImage(
-                                    image: carImages[index],
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 200),
-                      ],
+                      ),
                     ),
                   ),
                 ],

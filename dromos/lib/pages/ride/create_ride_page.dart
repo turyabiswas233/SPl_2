@@ -8,7 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class CreateRidePage extends StatefulWidget {
-  const CreateRidePage({super.key});
+  const CreateRidePage({super.key, this.onRideCreated});
+
+  final VoidCallback? onRideCreated;
 
   @override
   State<CreateRidePage> createState() => _CreateRidePageState();
@@ -310,6 +312,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                 onPressed: () {
                   Navigator.pop(ctx);
                   _resetForm();
+                  widget.onRideCreated?.call();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ConstColor.primaryPurple,

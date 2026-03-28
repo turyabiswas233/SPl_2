@@ -32,16 +32,14 @@ dependencies:
   image_picker: ^1.1.2
   http: ^1.6.0
   shared_preferences: ^2.5.4
-  google_maps_flutter_android: ^2.18.12
   geolocator: ^14.0.2
   geocoding: ^4.0.0
   flutter_native_splash: ^2.4.7
   lottie: ^3.3.2
   connectivity_plus: ^6.1.5
   flutter_dotenv: ^5.2.1
-  google_maps_flutter: ^2.14.2
   qr_flutter: ^4.1.0
-  google_places_flutter: ^2.1.1
+  mapbox_maps_flutter: ^2.20.1
 
 dev_dependencies:
   flutter_test:
@@ -60,7 +58,6 @@ flutter:
     - assets/cars/
     - assets/logo.png
     - assets/no_internet.json
-    - .env.local
 
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package

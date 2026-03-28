@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 void main() async {
   SystemChrome.setSystemUIOverlayStyle(
@@ -41,6 +42,16 @@ void main() async {
     await UserService().fetchProfile();
     defaultHome = const MainScreen();
   }
+  // Configure Mapbox access token from environment variable
+  String accessToken = dotenv.get("MAPBOX_ACCESS_TOKEN");
+  if (accessToken.isNotEmpty) {
+    MapboxOptions.setAccessToken(accessToken);
+  } else {
+    debugPrint(
+      "Warning: MAPBOX_ACCESS_TOKEN is not set in .env.local. Map features may not work properly.",
+    );
+  }
+
   runApp(MyApp(defaultHome: defaultHome));
 }
 

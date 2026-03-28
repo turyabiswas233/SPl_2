@@ -37,7 +37,7 @@ class _DefaultPage extends DefaultHomeScreen {
 
   final Color pc = ConstColor.primaryColor;
   final Color pbc = ConstColor.primaryBg;
-  final Color secondaryColor = ConstColor.primaryPurple;
+  final Color accentColor = ConstColor.primaryPurple;
 
   late final List<SizedBox> buttons = [
     SizedBox(
@@ -57,10 +57,11 @@ class _DefaultPage extends DefaultHomeScreen {
           );
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: secondaryColor,
+          backgroundColor: accentColor,
+          overlayColor: pbc.withAlpha(20),
           padding: const EdgeInsets.symmetric(vertical: 14.0),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(99.0),
           ),
         ),
         child: const Text(
@@ -89,10 +90,11 @@ class _DefaultPage extends DefaultHomeScreen {
           );
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: secondaryColor,
+          backgroundColor: accentColor,
+          overlayColor: pbc.withAlpha(20),
           padding: const EdgeInsets.symmetric(vertical: 14.0),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(99.0),
           ),
         ),
         child: const Text(
@@ -123,7 +125,7 @@ class _DefaultPage extends DefaultHomeScreen {
                     Text(
                       "Dromos",
                       textAlign: TextAlign.center,
-                      style: ConstFonts.bold(color: secondaryColor, size: 64),
+                      style: ConstFonts.bold(color: accentColor, size: 64),
                     ),
                     Text(
                       "Smart Simple Sustainable",
