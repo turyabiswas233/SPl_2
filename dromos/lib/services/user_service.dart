@@ -74,12 +74,14 @@ class UserService {
         final body = jsonDecode(response.body);
         if (body['success'] == true && body['data'] != null) {
           // The user object may be nested under body['data']['user'] or body['data']
-          final userData = body['data']['user'] ?? body['data'];
+          final userData = body['data'];
           _currentUser = UserModel.fromJson(userData);
           _userId = _currentUser.userId;
           return _currentUser;
         }
+        return null;
       }
+      return null;
     } catch (e) {
       debugPrint('UserService.fetchProfile error: $e');
     }
@@ -138,10 +140,10 @@ class UserService {
           'Authorization': 'Bearer $_token',
         },
         body: jsonEncode({
-          'full_name': fullName,
-          'phone_number': phoneNumber,
-          'dept_name': deptName,
-          'hall_name': hallName,
+          'fullName': fullName,
+          'phoneNumber': phoneNumber,
+          'deptName': deptName,
+          'hallName': hallName,
           'gender': gender,
         }),
       );

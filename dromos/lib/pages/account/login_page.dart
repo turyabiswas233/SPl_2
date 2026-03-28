@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:dromos/utils/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -94,6 +95,8 @@ class _LoginScreenState extends State<LoginPage> {
 
     setState(() => _isLoading = true);
 
+    debugPrint(Api.url);
+
     try {
       final body = {
         'email': _emailController.text.trim(),
@@ -117,16 +120,10 @@ class _LoginScreenState extends State<LoginPage> {
           // Save session & fetch full profile
           final token = responseData['data']?['token'] ?? '';
           final userId = responseData['data']?['user']?['user_id'] ?? '';
-          final fullName = responseData['data']?['user']?['full_name'] ?? '';
 
           final userService = UserService();
           await userService.saveSession(token: token, userId: userId);
           await userService.fetchProfile();
-          NotificationService().showNotification(
-            id: "login_success",
-            title: "Login Successful",
-            body: "Welcome back, $fullName!",
-          );
 
           // Navigate to main screen
           _navigateToMainScreen();
@@ -135,11 +132,12 @@ class _LoginScreenState extends State<LoginPage> {
             id: "login_faile",
             title: "Login Failed",
             body:
-                "Could not connect to server. Please check your internet connection and try again.",
+                "Invalid Credentials. Please check your internet connection and try again.",
           );
           _showErrorDialog(
             "Login Failed",
-            responseData['message'] ?? "Invalid credentials. Please try again.",
+            responseData['message'] ??
+                "Invalid credentials. Please check your internet connection and try again.",
           );
         }
       } else {
@@ -147,21 +145,23 @@ class _LoginScreenState extends State<LoginPage> {
           id: "login_faile",
           title: "Login Failed",
           body:
-              "Could not connect to server. Please check your internet connection and try again.",
+              "Invalid Credentials. Please check your internet connection and try again.",
         );
         _showErrorDialog(
           "Login Failed",
           responseData['message'] ??
-              "Server error (${response.statusCode}). Please try again.",
+              "Invalid Credentials. Please check your internet connection and try again.",
         );
       }
     } catch (e) {
       debugPrint('Login error: $e');
+      // get my device ip
+      dynamic localIp = InternetAddress.anyIPv4;
 
       if (!mounted) return;
       _showErrorDialog(
         "Connection Error",
-        "Could not connect to server. Please check your internet connection and try again.",
+        "Could not connect to server. Please check your internet connection and try again. API URL: ${Api.url}, Device Ip: $localIp",
       );
     } finally {
       if (mounted) {
@@ -187,7 +187,7 @@ class _LoginScreenState extends State<LoginPage> {
       appBar: AppBar(
         title: const Text(
           "Dromos - Login",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
         ),
         backgroundColor: Colors.transparent,
         bottomOpacity: 0,
@@ -331,25 +331,7 @@ class _LoginScreenState extends State<LoginPage> {
                   // Assign controller
                   isPassword: true,
                 ),
-                const SizedBox(height: 16.0),
-                // ... (Your existing code for Remember me, etc.)
-
-                // Remember Me Checkbox
-                Row(
-                  children: [
-                    Checkbox(
-                      activeColor: accentColor,
-                      value: rememberMe,
-                      onChanged: (bool? value) {
-                        setState(() {
-                          rememberMe = value ?? false;
-                        });
-                      },
-                    ),
-                    Text("Remember me", style: ConstFonts.normal(color: pc)),
-                  ],
-                ),
-                const SizedBox(height: 20.0),
+                const SizedBox(height: 26.0),
 
                 // Login Button
                 SizedBox(
@@ -358,9 +340,12 @@ class _LoginScreenState extends State<LoginPage> {
                     onPressed: _isLoading ? null : () => _handleLogin(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accentColor,
+                      overlayColor: pbc.withAlpha(20),
+                      iconSize: 20,
+                      iconColor: pbc,
                       padding: const EdgeInsets.symmetric(vertical: 14.0),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
+                        borderRadius: BorderRadius.circular(99.0),
                       ),
                     ),
                     child: _isLoading
@@ -384,7 +369,7 @@ class _LoginScreenState extends State<LoginPage> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              Icon(Icons.login, color: pbc),
+                              Icon(Icons.login),
                             ],
                           ),
                   ),

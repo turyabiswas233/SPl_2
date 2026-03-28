@@ -27,8 +27,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _deptCtrl;
   late final TextEditingController _hallCtrl;
+  late final TextEditingController _genderCtrl;
   late final OcrService _ocrService;
-  String _selectedGender = '';
 
   @override
   void initState() {
@@ -39,7 +39,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _phoneCtrl = TextEditingController(text: user.phoneNumber);
     _deptCtrl = TextEditingController(text: user.deptName);
     _hallCtrl = TextEditingController(text: user.hallName);
-    _selectedGender = user.gender;
+    _genderCtrl = TextEditingController(text: user.gender);
 
     if (user.isEmpty && _userService.isLoggedIn) {
       _refreshProfile();
@@ -53,6 +53,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _phoneCtrl.dispose();
     _deptCtrl.dispose();
     _hallCtrl.dispose();
+    _genderCtrl.dispose();
     super.dispose();
   }
 
@@ -65,7 +66,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       _phoneCtrl.text = user.phoneNumber;
       _deptCtrl.text = user.deptName;
       _hallCtrl.text = user.hallName;
-      _selectedGender = user.gender;
+      _genderCtrl.text = user.gender;
       setState(() => _isLoading = false);
     }
   }
@@ -79,7 +80,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       phoneNumber: _phoneCtrl.text.trim(),
       deptName: _deptCtrl.text.trim(),
       hallName: _hallCtrl.text.trim(),
-      gender: _selectedGender.toLowerCase(),
+      gender: _genderCtrl.text.trim().toLowerCase(),
     );
     if (mounted) {
       setState(() => _isSaving = false);
@@ -109,8 +110,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
           'Edit Profile',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: fColor,
+        backgroundColor: ConstColor.primaryPurple,
+        foregroundColor: bColor,
         elevation: 0,
       ),
       backgroundColor: bColor,
@@ -240,7 +241,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 style: TextButton.styleFrom(foregroundColor: ConstColor.error),
                 onPressed: () => Navigator.of(context).pop(),
                 child: Text(
-                  'Fill Manually',
+                  'Close',
                   style: ConstFonts.normal(size: 14, color: ConstColor.error),
                 ),
               ),
@@ -276,7 +277,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
           UserService().currentUser.registrationNumber,
         ).then((isValid) {
           if (isValid) {
-            
             _refreshProfile();
           } else {
             if (mounted) {
@@ -553,51 +553,37 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // ── Gender Selector ─────────────────────────────────────────────────────
 
   Widget _buildGenderSelector() {
-    final genders = ['male', 'female', 'other'];
+    var genders = ['male', 'female', 'other'];
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: accentColor.withAlpha(10),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.wc_rounded, color: accentColor, size: 22),
-          const SizedBox(width: 8),
-          Text(
-            'Gender',
-            style: TextStyle(fontSize: 15, color: fColor.withAlpha(140)),
+    return DropdownButtonFormField<String>(
+      initialValue: _genderCtrl.text.isNotEmpty ? _genderCtrl.text : null,
+      items: genders.map((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Text(
+            value.toUpperCase(),
+            style: ConstFonts.normal(size: 14, color: ConstColor.primaryColor),
           ),
-          const Spacer(),
-
-          Padding(
-            padding: const EdgeInsets.only(left: 2),
-            child: RadioGroup<int>(
-              groupValue: genders.indexOf(_selectedGender),
-              onChanged: (int? value) {
-                setState(() {
-                  _selectedGender = genders[value!];
-                });
-              },
-              child: Row(
-                children: List.generate(genders.length, (index) {
-                  return Row(
-                    children: [
-                      Radio<int>(value: index),
-                      Text(
-                        genders[index].replaceFirst(
-                          genders[index][0],
-                          genders[index][0].toUpperCase(),
-                        ),
-                      ),
-                    ],
-                  );
-                }),
-              ),
-            ),
-          ),
-        ],
+        );
+      }).toList(),
+      onChanged: (String? newValue) {
+        setState(() {
+          _genderCtrl.text = newValue!;
+        });
+      },
+      iconEnabledColor: accentColor,
+      dropdownColor: ConstColor.primaryBg,
+      style: ConstFonts.normal(size: 14, color: ConstColor.primaryColor),
+      decoration: InputDecoration(
+        labelText: 'Gender',
+        labelStyle: ConstFonts.normal(size: 14, color: ConstColor.primaryColor),
+        prefixIcon: Icon(Icons.wc_rounded, color: accentColor),
+        filled: true,
+        fillColor: accentColor.withAlpha(10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }

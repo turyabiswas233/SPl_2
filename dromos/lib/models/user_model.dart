@@ -29,29 +29,29 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      userId: json['user_id'] ?? '',
-      fullName: json['full_name'] ?? '',
+      userId: json['userId'] ?? '',
+      fullName: json['fullName'] ?? '',
       email: json['email'] ?? '',
-      phoneNumber: json['phone_number'] ?? '',
-      registrationNumber: json['registration_number'] ?? '',
-      deptName: json['dept_name'] ?? '',
-      hallName: json['hall_name'] ?? '',
+      phoneNumber: json['phoneNumber'] ?? '',
+      registrationNumber: json['registrationNumber'] ?? '',
+      deptName: json['deptName'] ?? '',
+      hallName: json['hallName'] ?? '',
       gender: json['gender'] ?? '',
-      verificationStatus: json['verification_status'] ?? '',
+      verificationStatus: json['verificationStatus'] ?? '',
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'user_id': userId,
-      'full_name': fullName,
+      'userId': userId,
+      'fullName': fullName,
       'email': email,
-      'phone_number': phoneNumber,
-      'registration_number': registrationNumber,
-      'dept_name': deptName,
-      'hall_name': hallName,
+      'phoneNumber': phoneNumber,
+      'registrationNumber': registrationNumber,
+      'deptName': deptName,
+      'hallName': hallName,
       'gender': gender,
-      'verification_status': verificationStatus,
+      'verificationStatus': verificationStatus,
     };
   }
 

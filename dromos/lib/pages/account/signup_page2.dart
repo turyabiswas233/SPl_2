@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:dromos/components/custom_input.dart';
 import 'package:dromos/screens/main_screen.dart';
 import 'package:dromos/services/user_service.dart';
@@ -58,10 +57,7 @@ class _SignupPage2State extends State<SignupPage2> {
               onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 "Got it",
-                style: ConstFonts.light(
-                  color: Colors.green.shade700,
-                  size: 14,
-                ),
+                style: ConstFonts.light(color: Colors.green.shade700, size: 14),
               ),
             ),
           ],
@@ -95,10 +91,7 @@ class _SignupPage2State extends State<SignupPage2> {
     // Validate email format
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(_emailController.text.trim())) {
-      _showErrorDialog(
-        "Invalid Email",
-        "Please enter a valid email address",
-      );
+      _showErrorDialog("Invalid Email", "Please enter a valid email address");
       return;
     }
 
@@ -107,13 +100,14 @@ class _SignupPage2State extends State<SignupPage2> {
     try {
       // Build the registration payload from both steps
       final body = {
-        'full_name': widget.userData['name'] ?? '',
+        'fullName': widget.userData['name'] ?? '',
         'email': _emailController.text.trim(),
         'password': _passwordController.text,
-        'phone_number': _phoneController.text.trim(),
-        'registration_number': widget.userData['registration'] ?? '',
-        'dept_name': widget.userData['department'] ?? '',
-        'hall_name': widget.userData['hall'] ?? '',
+        'phoneNumber': _phoneController.text.trim(),
+        'registrationNumber': widget.userData['registration'] ?? '',
+        'deptName': widget.userData['department'] ?? '',
+        'hallName': widget.userData['hall'] ?? '',
+        'gender': widget.userData['gender'] ?? '',
       };
 
       final response = await http.post(
@@ -125,13 +119,13 @@ class _SignupPage2State extends State<SignupPage2> {
       if (!mounted) return;
 
       final responseData = jsonDecode(response.body);
+      debugPrint(responseData.toString());
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (responseData['success'] == true) {
           // Save session & fetch full profile
           final token = responseData['data']?['token'] ?? '';
-          final userId =
-              responseData['data']?['user']?['user_id'] ?? '';
+          final userId = responseData['data']?['user']?['user_id'] ?? '';
 
           final userService = UserService();
           await userService.saveSession(token: token, userId: userId);
@@ -150,8 +144,7 @@ class _SignupPage2State extends State<SignupPage2> {
                   textAlign: TextAlign.center,
                   style: TextStyle(color: pc, fontWeight: FontWeight.bold),
                 ),
-                content:
-                    Text("Welcome to Dromos, ${widget.userData['name']}!"),
+                content: Text("Welcome to Dromos, ${widget.userData['name']}!"),
                 backgroundColor: Colors.white,
                 icon: const Icon(Icons.check_circle),
                 iconColor: Colors.green,
@@ -161,7 +154,8 @@ class _SignupPage2State extends State<SignupPage2> {
                       Navigator.of(ctx).pop();
                       Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(
-                            builder: (context) => const MainScreen()),
+                          builder: (context) => const MainScreen(),
+                        ),
                         (Route<dynamic> route) => false,
                       );
                     },
@@ -180,20 +174,23 @@ class _SignupPage2State extends State<SignupPage2> {
         } else {
           _showErrorDialog(
             "Registration Failed",
-            responseData['message'] ?? "Something went wrong. Please try again.",
+            responseData['message'] ??
+                "Something went wrong. Please try again.",
           );
         }
       } else {
+        debugPrint("Registration failed: ${response.statusCode}");
         _showErrorDialog(
           "Registration Failed",
-          responseData['message'] ?? "Server error (${response.statusCode}). Please try again.",
+          responseData['message'] ??
+              "Server error (${response.statusCode}). Please try again.",
         );
       }
     } catch (e) {
       if (!mounted) return;
       _showErrorDialog(
         "Connection Error",
-        "Could not connect to server. Please check your internet connection and try again."
+        "Could not connect to server. Please check your internet connection and try again.",
       );
     } finally {
       if (mounted) {
@@ -238,11 +235,11 @@ class _SignupPage2State extends State<SignupPage2> {
                     children: [
                       Text(
                         "Almost Done!",
-                        style: ConstFonts.normal(size: 32, color: pc),
+                        style: ConstFonts.light(size: 32, color: pc),
                       ),
                       Text(
                         "Step 2 of 2",
-                        style: ConstFonts.bold(
+                        style: ConstFonts.semibold(
                           color: accentColor,
                           size: 20,
                         ),
@@ -302,7 +299,7 @@ class _SignupPage2State extends State<SignupPage2> {
                       backgroundColor: accentColor,
                       padding: const EdgeInsets.symmetric(vertical: 14.0),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
+                        borderRadius: BorderRadius.circular(99.0),
                       ),
                     ),
                     child: _isLoading
@@ -325,7 +322,11 @@ class _SignupPage2State extends State<SignupPage2> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                              const Icon(
+                                Icons.check_circle,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ],
                           ),
                   ),

@@ -35,13 +35,13 @@ class RideService {
         Uri.parse('${Api.url}/rides'),
         headers: _authHeaders,
         body: jsonEncode({
-          'start_location': startLocation,
-          'start_lat': startLat,
-          'start_lng': startLng,
+          'startLocation': startLocation,
+          'startLat': startLat,
+          'startLng': startLng,
           'destination': destination,
-          'dest_lat': destLat,
-          'dest_lng': destLng,
-          'max_seats': maxSeats,
+          'destLat': destLat,
+          'destLng': destLng,
+          'maxSeats': maxSeats,
         }),
       );
 
@@ -79,7 +79,10 @@ class RideService {
         if (body['success'] == true && body['data'] != null) {
           final List<dynamic> ridesJson = body['data'] is List
               ? body['data']
-              : [body['data']];
+              : [body['data']].toList();
+          debugPrint(
+            'fetchMyRides fetched ${ridesJson.toList().toString()} rides',
+          );
           return ridesJson.map((r) => RideModel.fromJson(r)).toList();
         }
       }
@@ -105,6 +108,22 @@ class RideService {
       }
     } catch (e) {
       debugPrint('RideService.fetchRide error: $e');
+    }
+    return null;
+  }
+
+  /// Fetch a single ride by ID.
+  Future<dynamic> cancelRide(String rideId) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('${Api.url}/rides/$rideId/cancel'),
+        headers: _authHeaders,
+      );
+
+      final body = jsonDecode(response.body);
+      return body;
+    } catch (e) {
+      debugPrint('RideService.cancelRide error: $e');
     }
     return null;
   }

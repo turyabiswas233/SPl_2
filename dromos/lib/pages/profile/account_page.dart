@@ -17,7 +17,7 @@ class _AccountPageState extends State<AccountPage> {
 
   static const Color accentColor = ConstColor.primaryPurple;
   static const Color fColor = ConstColor.primaryColor;
-  static const Color bColor = ConstColor.primaryBg; 
+  static const Color bColor = ConstColor.primaryBg;
 
   @override
   void initState() {
@@ -41,7 +41,7 @@ class _AccountPageState extends State<AccountPage> {
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const DefaultHomeScreen()),
-      (Route<dynamic> route) => false,
+      (Route<dynamic> route) => true,
     );
   }
 
@@ -75,6 +75,7 @@ class _AccountPageState extends State<AccountPage> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: accentColor,
+                        overlayColor: bColor.withAlpha(20),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 48,
                           vertical: 12,
