@@ -28,6 +28,7 @@ const register = async (req, res) => {
     registration_number,
     dept_name,
     hall_name,
+    gender
   } = req.body;
 
   // Validate input
@@ -58,9 +59,9 @@ const register = async (req, res) => {
   // Create user
   const userId = uuidv4();
   const query = `
-    INSERT INTO users (user_id, full_name, email, password, phone_number, registration_number, dept_name, hall_name, verification_status)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'unverified')
-    RETURNING user_id, full_name, email, phone_number, registration_number, dept_name, hall_name, verification_status, created_at;
+    INSERT INTO users (user_id, full_name, email, password, phone_number, registration_number, dept_name, hall_name, verification_status, gender)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'unverified', $9)
+    RETURNING user_id, full_name, email, phone_number, registration_number, dept_name, hall_name, verification_status, gender, created_at;
   `;
 
   const result = await pool.query(query, [
@@ -72,6 +73,7 @@ const register = async (req, res) => {
     registration_number || null,
     dept_name || null,
     hall_name || null,
+    gender || null,
   ]);
 
   const user = result.rows[0];

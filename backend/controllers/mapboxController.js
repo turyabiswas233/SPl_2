@@ -9,7 +9,7 @@ const mbxGeocoding = geocoding(mbxClient);
 const getLocationsBySearch = async (req, res) => {
   try {
     const searchQuery = req.query.q;
-    const lm =5; // Optional limit parameter
+    const lm = 5; // Optional limit parameter
     if (!searchQuery) {
       return res.status(400).json({ error: 'Query parameter "q" is required' });
     }
@@ -18,6 +18,8 @@ const getLocationsBySearch = async (req, res) => {
       .forwardGeocode({
         query: searchQuery,
         limit: lm,
+        types: ["place", "address", "poi"],
+        countries: ["BD"],
       })
       .send();
 

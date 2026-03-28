@@ -9,7 +9,8 @@ const {
   createRide, 
   getRides, 
   getRideById, 
-  completeRide 
+  completeRide,
+  cancelRide,
 } = require('../../controllers/rideController');
 const { validateRideCreation, validateUUID } = require('../../middleware/validators');
 const asyncHandler = require('../../middleware/asyncHandler');
@@ -26,5 +27,8 @@ router.get('/:ride_id', validateUUID('ride_id'), asyncHandler(getRideById));
 
 // @route   POST /api/v1/rides/:ride_id/complete
 router.post('/:ride_id/complete', validateUUID('ride_id'), asyncHandler(completeRide));
+
+// @route   POST /api/v1/rides/:ride_id/cancel
+router.patch('/:ride_id/cancel', protect, validateUUID('ride_id'), asyncHandler(cancelRide));
 
 module.exports = router;

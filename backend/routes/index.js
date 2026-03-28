@@ -203,6 +203,15 @@ router.get('/info', (req, res) => {
               success: true,
               message: "Ride completed successfully"
             }
+          },
+          { 
+            method: "POST", 
+            path: "/api/v1/rides/:ride_id/cancel", 
+            description: "Cancel a ride",
+            response: {
+              success: true,
+              message: "Trip cancelled successfully"
+            }
           }
         ]
       },

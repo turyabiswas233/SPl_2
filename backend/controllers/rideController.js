@@ -93,7 +93,6 @@ const getRides = async (req, res) => {
            (SELECT COUNT(*) FROM ride_participants WHERE ride_id = r.ride_id) as current_passengers
     FROM rides r
     JOIN users u ON r.initiator_id = u.user_id
-    WHERE r.status = 'open'
   `;
   const params = [];
   let paramCount = 1;
@@ -248,9 +247,96 @@ const completeRide = async (req, res) => {
   }
 };
 
+// @desc    Cancel a trip
+// @route   POST /api/rides/:ride_id/cancel
+// @access  Private
+const cancelRide = async (req, res) => {
+  const { ride_id } = req.params;
+  const initiator_id = req.user?.userId;
+
+  if (!initiator_id) {
+    return res.status(401).json({
+      success: false,
+      message: "Authentication required.",
+    });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Verify initiator and make sure ride is not already completed/cancelled.
+    const rideCheck = await client.query(
+      `SELECT ride_id, status FROM rides WHERE ride_id = $1 AND initiator_id = $2`,
+      [ride_id, initiator_id],
+    );
+
+    if (rideCheck.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({
+        success: false,
+        message: "Only the initiator can cancel the ride.",
+      });
+    }
+
+    const rideStatus = rideCheck.rows[0].status;
+    if (rideStatus === "completed") {
+      await client.query("ROLLBACK");
+      return res.status(400).json({
+        success: false,
+        message: "Completed rides cannot be cancelled.",
+      });
+    }
+
+    if (rideStatus === "cancelled") {
+      await client.query("ROLLBACK");
+      return res.status(400).json({
+        success: false,
+        message: "Ride is already cancelled.",
+      });
+    }
+
+    await client.query(`UPDATE rides SET status = 'cancelled' WHERE ride_id = $1`, [
+      ride_id,
+    ]);
+
+    // Notify all participants about cancellation.
+    const participantsResult = await client.query(
+      `SELECT user_id FROM ride_participants WHERE ride_id = $1`,
+      [ride_id],
+    );
+
+    for (const participant of participantsResult.rows) {
+      const notificationId = uuidv4();
+      await client.query(
+        `INSERT INTO notifications (notification_id, user_id, ride_id, message)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          notificationId,
+          participant.user_id,
+          ride_id,
+          "Trip cancelled by the initiator.",
+        ],
+      );
+    }
+
+    await client.query("COMMIT");
+    res.status(200).json({
+      success: true,
+      message: "Trip cancelled successfully.",
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   createRide,
   getRides,
   getRideById,
   completeRide,
+  cancelRide,
 };
