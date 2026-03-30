@@ -1,6 +1,7 @@
 import 'package:dromos/models/ride_model.dart';
 import 'package:dromos/utils/location.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 class MapSample extends StatefulWidget {
@@ -30,13 +31,25 @@ class _MapSampleState extends State<MapSample> {
   PolylineAnnotationManager? polylineAnnotationManager;
 
   Future<void> _onMapCreated(MapboxMap map) async {
-    mapboxMap = map;
-    mapboxMap?.compass.updateSettings(CompassSettings(enabled: false));
-    mapboxMap?.scaleBar.updateSettings(ScaleBarSettings(enabled: false));
+    try {
+      dynamic accessToken = dotenv.env['MAPBOX_ACCESS_TOKEN'];
+      if (accessToken.isNotEmpty) {
+        MapboxOptions.setAccessToken(accessToken);
+      } else {
+        debugPrint(
+          "Warning: MAPBOX_ACCESS_TOKEN is not set in .env. Map features may not work properly.",
+        );
+      }
+      mapboxMap = map;
+      mapboxMap?.compass.updateSettings(CompassSettings(enabled: false));
+      mapboxMap?.scaleBar.updateSettings(ScaleBarSettings(enabled: false));
 
-    polylineAnnotationManager = await map.annotations
-        .createPolylineAnnotationManager();
-    await _drawRoute();
+      polylineAnnotationManager = await map.annotations
+          .createPolylineAnnotationManager();
+      await _drawRoute();
+    } catch (e) {
+      debugPrint("ERROR: $e");
+    }
   }
 
   Future<void> _drawRoute() async {

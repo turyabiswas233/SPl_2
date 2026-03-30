@@ -1,3 +1,5 @@
+import 'package:flutter/rendering.dart';
+
 class RideStatus {
   static const String open = 'open';
   static const String inProgress = 'in_progress';
@@ -8,6 +10,7 @@ class RideStatus {
 class RideModel {
   final String rideId;
   final String initiatorId;
+  final String initiatorName;
   final String startLocation;
   final double startLat;
   final double startLng;
@@ -18,11 +21,13 @@ class RideModel {
   final String tripOtp;
   final int maxSeats;
   final String status;
+  final String preferredGender;
   final DateTime createdAt;
 
   RideModel({
     this.rideId = '',
     this.initiatorId = '',
+    this.initiatorName = '',
     this.startLocation = '',
     this.startLat = 0.0,
     this.startLng = 0.0,
@@ -33,13 +38,16 @@ class RideModel {
     this.tripOtp = '',
     this.maxSeats = 4,
     this.status = 'open',
+    this.preferredGender = 'other',
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
   factory RideModel.fromJson(Map<String, dynamic> json) {
+    debugPrint(json.toString());
     return RideModel(
       rideId: json['rideId'] ?? '',
       initiatorId: json['initiatorId'] ?? '',
+      initiatorName: json['initiator'] != null ? json['initiator']['fullName'] ?? '' : '',
       startLocation: json['startLocation'] ?? '',
       startLat: (json['startLat'] ?? 0).toDouble(),
       startLng: (json['startLng'] ?? 0).toDouble(),
@@ -50,6 +58,7 @@ class RideModel {
       tripOtp: json['tripOtp'] ?? '',
       maxSeats: json['maxSeats'] ?? 4,
       status: json['status'] ?? RideStatus.open,
+      preferredGender: json['preferredGender'] ?? 'other',
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
@@ -70,20 +79,8 @@ class RideModel {
       'tripOtp': tripOtp,
       'maxSeats': maxSeats,
       'status': status,
+      'preferredGender': preferredGender,
       'created_at': createdAt.toIso8601String(),
-    };
-  }
-
-  /// Body format for the create ride API
-  Map<String, dynamic> toCreateBody() {
-    return {
-      'startLocation': startLocation,
-      'startLat': startLat,
-      'startLng': startLng,
-      'destinationName': destinationName,
-      'destLat': destLat,
-      'destLng': destLng,
-      'maxSeats': maxSeats,
     };
   }
 

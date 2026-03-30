@@ -1,5 +1,6 @@
 import 'package:dromos/pages/home_page.dart';
 import 'package:dromos/pages/ride/create_ride_page.dart';
+import 'package:dromos/pages/ride/nearby_rides_page.dart';
 import 'package:dromos/pages/activity/activity_page.dart';
 import 'package:flutter/material.dart';
 import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
@@ -16,7 +17,8 @@ class MainScreenNavigation {
 
   static final List<Widget> widgetOptions = <Widget>[
     const HomePage(),
-    CreateRidePage(onRideCreated: () => setPage(2)),
+    CreateRidePage(onRideCreated: () => setPage(3)),
+    const NearbyRidesPage(),
     const ActivityPage(),
     AccountPage(),
   ];
@@ -59,7 +61,12 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   SalomonBottomBarItem(
                     icon: const Icon(Icons.add_circle_outline),
-                    title: const Text("Ride"),
+                    title: const Text("Create"),
+                    selectedColor: ConstColor.primaryPurple,
+                  ),
+                  SalomonBottomBarItem(
+                    icon: const Icon(Icons.directions_car_outlined),
+                    title: const Text("Browse"),
                     selectedColor: ConstColor.primaryPurple,
                   ),
                   SalomonBottomBarItem(

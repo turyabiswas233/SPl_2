@@ -55,6 +55,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - .env
     - assets/cars/
     - assets/logo.png
     - assets/no_internet.json

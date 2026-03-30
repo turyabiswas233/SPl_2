@@ -16,10 +16,15 @@ class NotificationService {
     );
 
     const initSettings = InitializationSettings(android: androidSettings);
+    try {
+      await notificationPlugin.initialize(initSettings);
+    } catch (e) {
+      debugPrint("ERROR: $e");
+    }
 
-    await notificationPlugin.initialize(initSettings);
-
-    debugPrint("\x1B[35mNOTIFICATION_DEBUG: Notification service initialized\x1B[0m");
+    debugPrint(
+      "\x1B[32mNOTIFICATION_DEBUG: Notification service initialized\x1B[0m",
+    );
     _isInitialized = true;
   }
 
