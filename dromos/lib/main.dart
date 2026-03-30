@@ -26,14 +26,22 @@ void main() async {
   );
   WidgetsFlutterBinding.ensureInitialized();
 
-  /// load environment variables
-  await dotenv.load(fileName: '.env.local');
+  try {
+    /// load environment variables
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    debugPrint("ENV error: $e");
+  }
 
   /// request necessary permissions before app starts
   await _requestPermissions();
 
-  /// initialize notification service
-  await NotificationService().initNotification();
+  try {
+    /// initialize notification service
+    await NotificationService().initNotification();
+  } catch (e) {
+    debugPrint("Noti Error: $e");
+  }
 
   // Load saved session & fetch profile if token exists
   await UserService().init();
@@ -42,16 +50,6 @@ void main() async {
     await UserService().fetchProfile();
     defaultHome = const MainScreen();
   }
-  // Configure Mapbox access token from environment variable
-  String accessToken = dotenv.get("MAPBOX_ACCESS_TOKEN");
-  if (accessToken.isNotEmpty) {
-    MapboxOptions.setAccessToken(accessToken);
-  } else {
-    debugPrint(
-      "Warning: MAPBOX_ACCESS_TOKEN is not set in .env.local. Map features may not work properly.",
-    );
-  }
-
   runApp(MyApp(defaultHome: defaultHome));
 }
 
@@ -110,9 +108,10 @@ class _MyAppState extends State<MyApp> {
     try {
       debugPrint("Retrying connection...");
       results = await Connectivity().checkConnectivity();
+      await Future.delayed(const Duration(seconds: 1));
+      debugPrint(results.toString());
     } catch (e) {
       debugPrint("Couldn't Check Connectivity Status: $e");
-
       results = [ConnectivityResult.none];
     }
     return _isInternetAvailable(results);
@@ -139,7 +138,7 @@ class _MyAppState extends State<MyApp> {
   bool _timeoutSplash = false;
 
   Future<void> _startSplashTimer() async {
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 1));
     setState(() {
       _timeoutSplash = true;
     });
@@ -153,6 +152,7 @@ class _MyAppState extends State<MyApp> {
     if (!_isInternetConnected) {
       return NoInternetConnectionScreen(onRetry: _retryConnection);
     }
+
 
     return widget.defaultHome;
   }

@@ -33,14 +33,14 @@ class LocationInfo {
   String? getSubLocality() => subLocality;
   String? getIsoCode() => isoCode;
   Cord? getLocation() => cord;
+  /// Returns true if location has already been resolved.
+  static bool get isResolved => cord != null;
 
   @override
   String toString() {
     return 'LocationInfo{name: $name, locality: $locality, subLocality: $subLocality, $cord}';
   }
 
-  /// Returns true if location has already been resolved.
-  static bool get isResolved => cord != null;
 
   static Future<void> resolveCurrentCity() async {
     LocationPermission permission = await Geolocator.checkPermission();

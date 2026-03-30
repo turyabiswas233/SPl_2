@@ -79,6 +79,7 @@ class _HomePageState extends State<HomePage> {
     if (user.isEmpty) {
       UserService().logout();
     }
+    _fetchNotifications();
   }
 
   @override

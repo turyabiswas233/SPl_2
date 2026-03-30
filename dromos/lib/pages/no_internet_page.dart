@@ -11,8 +11,9 @@ class NoInternetConnectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
+      body: Container(
         padding: const EdgeInsets.all(16.0),
+        color: ConstColor.primaryPurple.withAlpha(20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -49,8 +50,9 @@ class NoInternetConnectionScreen extends StatelessWidget {
                     },
               style: ElevatedButton.styleFrom(
                 backgroundColor: ConstColor.primaryBg,
+                overlayColor: ConstColor.primaryPurple.withAlpha(1),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.0),
+                  borderRadius: BorderRadius.circular(99.0),
                 ),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 48,

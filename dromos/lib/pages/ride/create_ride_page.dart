@@ -26,6 +26,9 @@ class _CreateRidePageState extends State<CreateRidePage> {
   // Seats
   int _maxSeats = 1;
 
+  // Preferred Gender
+  String _preferredGender = 'other';
+
   // Submission
   bool _isCreating = false;
 
@@ -98,6 +101,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
       ),
     );
     if (result != null) {
+      if (!mounted) return;
       setState(() {
         _startPlace = result;
         _useMyLocation = false;
@@ -114,6 +118,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
       ),
     );
     if (result != null) {
+      if (!mounted) return;
       setState(() => _destPlace = result);
     }
   }
@@ -132,14 +137,15 @@ class _CreateRidePageState extends State<CreateRidePage> {
       return;
     }
 
-    setState(() => _isCreating = true);
-
     try {
+      if (!mounted) return;
+      setState(() => _isCreating = true);
       final ride = await _rideService.createRide(
         startLocation: _startPlace!.name,
         startLat: _startPlace!.lat,
         startLng: _startPlace!.lng,
         destination: _destPlace!.name,
+        preferredGender: _preferredGender,
         destLat: _destPlace!.lat,
         destLng: _destPlace!.lng,
         maxSeats: _maxSeats,
@@ -333,12 +339,15 @@ class _CreateRidePageState extends State<CreateRidePage> {
   }
 
   void _resetForm() {
-    setState(() {
-      _destPlace = null;
-      _maxSeats = 1;
-      _useMyLocation = true;
-    });
-    _fetchMyLocation();
+    if (mounted) {
+      setState(() {
+        _destPlace = null;
+        _maxSeats = 1;
+        _preferredGender = 'other';
+        _useMyLocation = true;
+      });
+      _fetchMyLocation();
+    }
   }
 
   @override
@@ -437,7 +446,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                       top: Radius.circular(16),
                                     ),
                                     child: Padding(
-                                      padding: const EdgeInsets.all(16),
+                                      padding: const EdgeInsets.all(8),
                                       child: Row(
                                         children: [
                                           Container(
@@ -469,6 +478,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                                   'My Location',
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.w600,
+                                                    fontSize: 12,
                                                   ),
                                                 ),
                                                 if (_useMyLocation &&
@@ -476,7 +486,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                                   Text(
                                                     _startPlace!.name,
                                                     style: TextStyle(
-                                                      fontSize: 12,
+                                                      fontSize: 10,
                                                       color:
                                                           Colors.grey.shade600,
                                                     ),
@@ -489,7 +499,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                                   const Text(
                                                     'Detecting...',
                                                     style: TextStyle(
-                                                      fontSize: 12,
+                                                      fontSize: 10,
                                                       color: ConstColor
                                                           .primaryPurple,
                                                     ),
@@ -527,7 +537,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                       bottom: Radius.circular(16),
                                     ),
                                     child: Padding(
-                                      padding: const EdgeInsets.all(16),
+                                      padding: const EdgeInsets.all(8),
                                       child: Row(
                                         children: [
                                           Container(
@@ -559,6 +569,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                                   'Search Location',
                                                   style: TextStyle(
                                                     fontWeight: FontWeight.w600,
+                                                    fontSize: 12,
                                                   ),
                                                 ),
                                                 if (!_useMyLocation &&
@@ -646,7 +657,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                               onTap: _openDestSearch,
                               borderRadius: BorderRadius.circular(16),
                               child: Container(
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(16),
@@ -688,6 +699,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                                   _destPlace!.name,
                                                   style: const TextStyle(
                                                     fontWeight: FontWeight.w600,
+                                                    fontSize: 12,
                                                   ),
                                                 ),
                                                 Text(
@@ -696,7 +708,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                                   overflow:
                                                       TextOverflow.ellipsis,
                                                   style: TextStyle(
-                                                    fontSize: 12,
+                                                    fontSize: 10,
                                                     color: Colors.grey.shade600,
                                                   ),
                                                 ),
@@ -721,7 +733,95 @@ class _CreateRidePageState extends State<CreateRidePage> {
 
                             const SizedBox(height: 32),
 
-                            // ── MAX SEATS ──
+                            // ── PREFERRED GENDER ──
+                            const Text(
+                              'PREFERRED GENDER',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.grey,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withAlpha(12),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _preferredGender,
+                                  dropdownColor: Colors.white,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: ConstColor.primaryColor,
+                                  ),
+                                  isExpanded: true,
+                                  items: [
+                                    DropdownMenuItem(
+                                      value: 'male',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.person,
+                                            color: ConstColor.primaryPurple,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          const Text('Male'),
+                                        ],
+                                      ),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'female',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.person,
+                                            color: ConstColor.primaryPurple,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          const Text('Female'),
+                                        ],
+                                      ),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'other',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.group,
+                                            color: ConstColor.primaryPurple,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          const Text('Other'),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setState(() => _preferredGender = value);
+                                    }
+                                  },
+                                  iconEnabledColor: ConstColor.primaryPurple,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 32),
                             const Text(
                               'MAX SEATS',
                               style: TextStyle(
@@ -764,6 +864,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                         'Passengers',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
+                                          fontSize: 12
                                         ),
                                       ),
                                     ],
@@ -783,7 +884,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                         child: Text(
                                           '$_maxSeats',
                                           style: const TextStyle(
-                                            fontSize: 20,
+                                            fontSize: 14,
                                             fontWeight: FontWeight.bold,
                                             color: ConstColor.primaryPurple,
                                           ),
@@ -816,7 +917,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                       .primaryPurple
                                       .withAlpha(120),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(99),
                                   ),
                                   elevation: 2,
                                 ),
@@ -838,7 +939,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                           Text(
                                             'Create Ride',
                                             style: TextStyle(
-                                              fontSize: 16,
+                                              fontSize: 14,
                                               fontWeight: FontWeight.w700,
                                             ),
                                           ),
@@ -865,8 +966,8 @@ class _CreateRidePageState extends State<CreateRidePage> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        width: 36,
-        height: 36,
+        width: 28,
+        height: 28,
         decoration: BoxDecoration(
           color: enabled
               ? ConstColor.primaryPurple.withAlpha(20)
