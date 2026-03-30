@@ -1,93 +1,91 @@
 /**
  * Authentication Controller
- * Handles user verification and authentication
+ * Handles user verification and authentication with Prisma ORM
  */
 
 const { default: axios } = require("axios");
-const pool = require("../db/db");
+const prisma = require("../db/prismaClient");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
-
-// Generate JWT Token
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET_KEY, {
-    expiresIn: "30d",
-  });
-};
+const { clog } = require("../utils/log");
 
 // @desc    Register new user
 // @route   POST /api/auth/register
 // @access  Public
 const register = async (req, res) => {
-  const {
-    full_name,
-    email,
-    password,
-    phone_number,
-    registration_number,
-    dept_name,
-    hall_name,
-    gender
-  } = req.body;
+  const userData = req.body;
+  console.log(JSON.stringify(userData, null, 2));
 
-  // Validate input
-  if (!full_name || !email || !password) {
-    return res.status(400).json({
+  try {
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: userData.email },
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        error: "User already exists with this email",
+      });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(userData.password, salt);
+
+    // Create user
+    const userId = uuidv4();
+    const user = await prisma.user.create({
+      data: {
+        userId,
+        fullName: userData.fullName,
+        email: userData.email,
+        password: hashedPassword,
+        phoneNumber: userData.phoneNumber || null,
+        registrationNumber: userData.registrationNumber || null,
+        deptName: userData.deptName || null,
+        hallName: userData.hallName || null,
+        gender: userData.gender || null,
+        verificationStatus: "unverified",
+      },
+      select: {
+        userId: true,
+        fullName: true,
+        email: true,
+        phoneNumber: true,
+        registrationNumber: true,
+        deptName: true,
+        hallName: true,
+        verificationStatus: true,
+        gender: true,
+        createdAt: true,
+      },
+    });
+
+    // Generate token
+    const token = jwt.sign(
+      { userId: user.userId },
+      process.env.JWT_SECRET_KEY,
+      {
+        expiresIn: "30d",
+      },
+    );
+
+    res.status(201).json({
+      success: true,
+      data: {
+        user,
+        token,
+      },
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
+    res.status(500).json({
       success: false,
-      error: "Please provide full name, email, and password",
+      error: "An error occurred during registration",
     });
   }
-
-  // Check if user already exists
-  const existingUser = await pool.query(
-    "SELECT * FROM users WHERE email = $1",
-    [email],
-  );
-
-  if (existingUser.rows.length > 0) {
-    return res.status(400).json({
-      success: false,
-      error: "User already exists with this email",
-    });
-  }
-
-  // Hash password
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt);
-
-  // Create user
-  const userId = uuidv4();
-  const query = `
-    INSERT INTO users (user_id, full_name, email, password, phone_number, registration_number, dept_name, hall_name, verification_status, gender)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'unverified', $9)
-    RETURNING user_id, full_name, email, phone_number, registration_number, dept_name, hall_name, verification_status, gender, created_at;
-  `;
-
-  const result = await pool.query(query, [
-    userId,
-    full_name,
-    email,
-    hashedPassword,
-    phone_number || null,
-    registration_number || null,
-    dept_name || null,
-    hall_name || null,
-    gender || null,
-  ]);
-
-  const user = result.rows[0];
-
-  // Generate token
-  const token = generateToken(user.user_id);
-
-  res.status(201).json({
-    success: true,
-    data: {
-      user,
-      token,
-    },
-  });
 };
 
 // @desc    Login user
@@ -104,118 +102,150 @@ const login = async (req, res) => {
     });
   }
 
-  // Check if user exists
-  const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-    email,
-  ]);
+  try {
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
 
-  if (result.rows.length === 0) {
-    return res.status(401).json({
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid credentials",
+      });
+    }
+
+    // Check if password exists (for users who registered with email/password)
+    if (!user.password) {
+      clog(`Login attempt for user without password: ${email}`, "warn");
+      return res.status(401).json({
+        success: false,
+        error:
+          "This account was not created with email/password. Please use the appropriate login method.",
+      });
+    }
+
+    // Verify password
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid credentials",
+      });
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      { userId: user.userId },
+      process.env.JWT_SECRET_KEY,
+      {
+        expiresIn: "30d",
+      },
+    );
+
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = user;
+    clog(`User logged in: ${email}`, "info");
+    res.status(200).json({
+      success: true,
+      data: {
+        user: userWithoutPassword,
+        token,
+      },
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({
       success: false,
-      error: "Invalid credentials",
+      error: "An error occurred during login",
     });
   }
-
-  const user = result.rows[0];
-
-  // Check if password exists (for users who registered with email/password)
-  if (!user.password) {
-    return res.status(401).json({
-      success: false,
-      error:
-        "This account was not created with email/password. Please use the appropriate login method.",
-    });
-  }
-
-  // Verify password
-  const isMatch = await bcrypt.compare(password, user.password);
-
-  if (!isMatch) {
-    return res.status(401).json({
-      success: false,
-      error: "Invalid credentials",
-    });
-  }
-
-  // Generate token
-  const token = generateToken(user.user_id);
-
-  // Remove password from response
-  delete user.password;
-
-  res.status(200).json({
-    success: true,
-    data: {
-      user,
-      token,
-    },
-  });
 };
 
 // @desc    Get current user
 // @route   GET /api/auth/me
 // @access  Private
 const getMe = async (req, res) => {
-  const result = await pool.query(
-    `SELECT user_id, full_name, email, phone_number, registration_number, hall_name, 
-            dept_name, gender, verification_status
-     FROM users WHERE user_id = $1`,
-    [req.user.userId],
-  );
+  try {
+    const user = await prisma.user.findUnique({
+      where: { userId: req.user.userId },
+      select: {
+        userId: true,
+        fullName: true,
+        email: true,
+        phoneNumber: true,
+        registrationNumber: true,
+        hallName: true,
+        deptName: true,
+        gender: true,
+        verificationStatus: true,
+      },
+    });
 
-  if (result.rows.length === 0) {
-    return res.status(404).json({
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    console.error("Get user error:", error);
+    res.status(500).json({
       success: false,
-      error: "User not found",
+      error: "An error occurred while fetching user data",
     });
   }
-
-  res.status(200).json({
-    success: true,
-    data: result.rows[0],
-  });
 };
 
 // @desc    Update current user
 // @route   PUT /api/auth/update
 // @access  Private
 const updateMe = async (req, res) => {
-  const { full_name, phone_number, dept_name, hall_name, gender } = req.body;
+  const { fullName, phoneNumber, deptName, hallName, gender } = req.body;
   const userId = req.user.userId;
-  const updateQuer = `
-    UPDATE users 
-    SET full_name = $1, phone_number = $2, dept_name = $3, hall_name = $4, gender = $5 WHERE user_id = $6
-    RETURNING *;
-  `;
-  const fetchOldData = `
-    SELECT * FROM users WHERE user_id = $1;
-  `;
-  const oldDataResult = await pool.query(fetchOldData, [userId]);
-  if (oldDataResult.rows.length === 0) {
-    return res.status(404).json({
-      success: false,
-      error: "User not found",
-    });
-  }
-  const result = await pool.query(updateQuer, [
-    full_name || oldDataResult.rows[0].full_name,
-    phone_number || oldDataResult.rows[0].phone_number,
-    dept_name || oldDataResult.rows[0].dept_name,
-    hall_name || oldDataResult.rows[0].hall_name,
-    gender || oldDataResult.rows[0].gender,
-    userId,
-  ]);
 
-  if (result.rows.length === 0) {
-    return res.status(404).json({
+  try {
+    // Fetch current user data
+    const currentUser = await prisma.user.findUnique({
+      where: { userId },
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    // Update user with new values or keep existing ones
+    const updatedUser = await prisma.user.update({
+      where: { userId },
+      data: {
+        fullName: fullName || currentUser.fullName,
+        phoneNumber: phoneNumber || currentUser.phoneNumber,
+        deptName: deptName || currentUser.deptName,
+        hallName: hallName || currentUser.hallName,
+        gender: gender || currentUser.gender,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error("Update user error:", error);
+    res.status(500).json({
       success: false,
-      error: "User not found",
+      error: "An error occurred while updating user",
     });
   }
-  return res.status(200).json({
-    success: true,
-    data: result.rows[0],
-  });
 };
 
 // @desc    Verify student identity
@@ -225,16 +255,16 @@ const verifyStudentship = async (req, res) => {
   const studentId = req.params.id;
   const regId = req.query.reg_id;
 
-  console.log("DU REG ID: " + regId, "[", studentId, "]");
+  clog("DU REG ID: " + regId, "[", studentId, "]", "warn");
 
   try {
     const _duIdIdentifierUrl = "https://academic.eis.du.ac.bd/en/studentship";
     const du_response = await axios.get(`${_duIdIdentifierUrl}/${studentId}`, {
       responseType: "text",
     });
-    console.log(
+    clog(
       "DU RESPONSE STATUS: " + du_response?.data?.length,
-      du_response.status,
+      du_response.status === 200 ? "info" : "error",
     );
     if (du_response.status !== 200) {
       return res
@@ -242,36 +272,39 @@ const verifyStudentship = async (req, res) => {
         .json({ success: false, message: "Verification failed." });
     }
 
-    const findStudentQuery = `
-      SELECT DISTINCT * FROM users WHERE registration_number = $1;
-    `;
-    const query = `
-      UPDATE users SET verification_status = $2 WHERE registration_number = $1
-      RETURNING *;
-    `;
+    // Find student by registration number
+    const studentData = await prisma.user.findUnique({
+      where: { registrationNumber: regId },
+    });
 
-    const studentDataResult = await pool.query(findStudentQuery, [regId]);
-
-    if (studentDataResult.rows.length === 0) {
+    if (!studentData) {
       return res.status(404).json({
         success: false,
         error: "Student data not found for the provided registration number",
       });
     }
+
     const text = du_response.data;
-    console.log(
+    clog(
       `Verification Text: ${text?.toLocaleLowerCase().includes("current student") ? "YES" : "NO"}`,
+      "info",
     );
+
     const isVerified =
       text?.toLocaleLowerCase().includes(regId) &&
       text?.toLocaleLowerCase().includes("current student")
         ? "verified"
         : "unverified";
-    const dbResult = await pool.query(query, [regId, isVerified]);
+
+    // Update user verification status
+    const updatedUser = await prisma.user.update({
+      where: { registrationNumber: regId },
+      data: { verificationStatus: isVerified },
+    });
 
     return res.status(200).json({
       success: true,
-      data: dbResult.rows[0],
+      data: updatedUser,
       isVerified: isVerified,
     });
   } catch (error) {
@@ -279,7 +312,7 @@ const verifyStudentship = async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "An error occurred while verifying studentship",
-      message: error,
+      message: error.message,
     });
   }
 };

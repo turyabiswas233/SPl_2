@@ -1,10 +1,10 @@
 /**
  * Message Controller
- * Handles in-ride chat messages
+ * Handles in-ride chat messages using Prisma ORM
  */
 
-const pool = require('../db/db');
-const { v4: uuidv4 } = require('uuid');
+const prisma = require("../db/prismaClient");
+const { v4: uuidv4 } = require("uuid");
 
 // @desc    Send message in ride chat
 // @route   POST /api/rides/:ride_id/messages
@@ -13,32 +13,56 @@ const sendMessage = async (req, res) => {
   const { ride_id } = req.params;
   const { sender_id, message_text } = req.body;
 
-  const messageId = uuidv4();
+  try {
+    // Verify sender is part of the ride
+    const participantCheck =
+      (await prisma.rideRequest.findFirst({
+        where: {
+          rideId: ride_id,
+          requesterId: sender_id,
+        },
+      })) ||
+      (await prisma.ride.findFirst({
+        where: {
+          rideId: ride_id,
+          initiatorId: sender_id,
+        },
+      }));
 
-  // Verify sender is part of the ride
-  const participantCheck = await pool.query(
-    `SELECT * FROM ride_participants WHERE ride_id = $1 AND user_id = $2`,
-    [ride_id, sender_id]
-  );
+    if (!participantCheck) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not part of this ride.",
+      });
+    }
 
-  if (participantCheck.rows.length === 0) {
-    return res.status(403).json({ 
-      success: false, 
-      message: "You are not part of this ride." 
+    const messageId = uuidv4();
+const createdAt = new Date();
+const offsetMs = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
+const gmtPlus6 = new Date(createdAt.getTime() + offsetMs);
+    // Create message
+    const result = await prisma.message.create({
+      data: {
+        messageId,
+        rideId: ride_id,
+        senderId: sender_id,
+        messageText: message_text,
+        createdAt: gmtPlus6.toISOString(),
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: result,
+    });
+  } catch (err) {
+    console.error("Send message error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Error sending message",
+      error: err.message,
     });
   }
-
-  const result = await pool.query(
-    `INSERT INTO messages (message_id, ride_id, sender_id, message_text)
-     VALUES ($1, $2, $3, $4)
-     RETURNING *`,
-    [messageId, ride_id, sender_id, message_text]
-  );
-
-  res.status(201).json({ 
-    success: true, 
-    data: result.rows[0] 
-  });
 };
 
 // @desc    Get ride messages
@@ -46,24 +70,39 @@ const sendMessage = async (req, res) => {
 // @access  Private
 const getMessages = async (req, res) => {
   const { ride_id } = req.params;
-  
-  const result = await pool.query(
-    `SELECT m.*, u.full_name as sender_name
-     FROM messages m
-     JOIN users u ON m.sender_id = u.user_id
-     WHERE m.ride_id = $1
-     ORDER BY m.created_at ASC`,
-    [ride_id]
-  );
 
-  res.status(200).json({ 
-    success: true, 
-    count: result.rows.length,
-    data: result.rows 
-  });
+  try {
+    const messages = await prisma.message.findMany({
+      where: { rideId: ride_id },
+      include: {
+        sender: {
+          select: {
+            fullName: true,
+            userId: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      count: messages.length,
+      data: messages,
+    });
+  } catch (err) {
+    console.error("Get messages error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching messages",
+      error: err.message,
+    });
+  }
 };
 
 module.exports = {
   sendMessage,
-  getMessages
+  getMessages,
 };

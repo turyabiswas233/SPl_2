@@ -1,0 +1,259 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enums for enum types
+enum AppRole {
+  student
+  admin
+}
+
+enum UserStatus {
+  unverified
+  verified
+  banned
+}
+
+enum RideStatus {
+  open
+  in_progress
+  completed
+  cancelled
+}
+
+enum GenderType {
+  male
+  female
+  other
+}
+
+enum ReportStatus {
+  pending
+  resolved
+  dismissed
+}
+
+enum RequestStatus {
+  pending
+  accepted
+  rejected
+}
+
+enum SOSAlertStatus {
+  active
+  resolved
+}
+
+// User Model
+model User {
+  userId               String @id @db.Uuid
+  fullName             String @db.VarChar(100)
+  email                String? @unique @db.VarChar(255)
+  password             String? @db.VarChar(255)
+  phoneNumber          String? @unique @db.VarChar(15)
+  gender               String? @db.VarChar(10)
+  role                 AppRole @default(student)
+  
+  registrationNumber   String? @unique @db.VarChar(20)
+  deptName             String? @db.VarChar(100)
+  hallName             String? @db.VarChar(100)
+  verificationStatus   UserStatus @default(unverified)
+  createdAt            DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  initiatedRides       Ride[] @relation("initiator")
+  rideParticipants     RideParticipant[] @relation("user")
+  participatedAs       RideParticipant[] @relation("participant")
+  reportedBy           Report[] @relation("reporter")
+  reportedAgainst      Report[] @relation("reported")
+  notifications        Notification[]
+  initiatedRequests    RideRequest[] @relation("requester")
+  sentMessages         Message[]
+  ratedBy              Rating[] @relation("rater")
+  ratedAgainst         Rating[] @relation("rated")
+  fares                Fare[]
+  sosAlerts            SOSAlert[]
+
+  @@map("users")
+}
+
+// Ride Model
+model Ride {
+  rideId               String @id @db.Uuid
+  initiatorId          String @db.Uuid
+  preferredGender      GenderType @default(other)
+
+  startLocation        String
+  startLat             Float
+  startLng             Float
+  
+  destinationName      String
+  destLat              Float
+  destLng              Float
+  
+  tripQrCode           String @unique
+  tripOtp              String @db.Char(6)
+  maxSeats             Int
+  status               RideStatus @default(open)
+  createdAt            DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  initiator            User @relation("initiator", fields: [initiatorId], references: [userId], onDelete: Cascade)
+  participants         RideParticipant[]
+  reports              Report[]
+  notifications        Notification[]
+  requests             RideRequest[]
+  messages             Message[]
+  ratings              Rating[]
+  fares                Fare[]
+  sosAlerts            SOSAlert[]
+
+  @@map("rides")
+}
+
+// Ride Participants Model
+model RideParticipant {
+  rideParticipantId    String @id @db.Uuid
+  rideId               String @db.Uuid
+  userId               String @db.Uuid
+  participantId        String @db.Uuid
+  
+  meetingLat           Float?
+  meetingLng           Float?
+  
+  hasMetBoolean        Boolean @default(false)
+  metAt                DateTime? @db.Timestamptz()
+
+  // Relations
+  ride                 Ride @relation(fields: [rideId], references: [rideId], onDelete: Cascade)
+  user                 User @relation("user", fields: [userId], references: [userId], onDelete: Cascade)
+  participant          User @relation("participant", fields: [participantId], references: [userId], onDelete: Cascade)
+
+  @@unique([rideId, userId, participantId])
+  @@map("ride_participants")
+}
+
+// Report Model
+model Report {
+  reportId             String @id @db.Uuid
+  reporterId           String? @db.Uuid
+  reportedId           String? @db.Uuid
+  rideId               String? @db.Uuid
+  issueType            String
+  status               ReportStatus @default(pending)
+  createdAt            DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  reporter             User? @relation("reporter", fields: [reporterId], references: [userId], onDelete: SetNull)
+  reported             User? @relation("reported", fields: [reportedId], references: [userId], onDelete: SetNull)
+  ride                 Ride? @relation(fields: [rideId], references: [rideId], onDelete: Cascade)
+
+  @@map("reports")
+}
+
+// Notification Model
+model Notification {
+  notificationId       String @id @db.Uuid
+  userId               String @db.Uuid
+  rideId               String? @db.Uuid
+  messageText          String
+  isRead               Boolean @default(false)
+  createdAt            DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  user                 User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  ride                 Ride? @relation(fields: [rideId], references: [rideId], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// Ride Request Model
+model RideRequest {
+  requestId            String @id @db.Uuid
+  rideId               String @db.Uuid
+  requesterId          String @db.Uuid
+  status               RequestStatus @default(pending)
+  createdAt            DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  ride                 Ride @relation(fields: [rideId], references: [rideId], onDelete: Cascade)
+  requester            User @relation("requester", fields: [requesterId], references: [userId], onDelete: Cascade)
+
+  @@unique([rideId, requesterId])
+  @@map("ride_requests")
+}
+
+// Message Model
+model Message {
+  messageId            String @id @db.Uuid
+  rideId               String @db.Uuid
+  senderId             String @db.Uuid
+  messageText          String
+  createdAt            DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  ride                 Ride @relation(fields: [rideId], references: [rideId], onDelete: Cascade)
+  sender               User @relation(fields: [senderId], references: [userId], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+// Rating Model
+model Rating {
+  ratingId             String @id @db.Uuid
+  rideId               String @db.Uuid
+  raterId              String @db.Uuid
+  ratedUserId          String @db.Uuid
+  rating               Int
+  comment              String?
+  createdAt            DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  ride                 Ride @relation(fields: [rideId], references: [rideId], onDelete: Cascade)
+  rater                User @relation("rater", fields: [raterId], references: [userId], onDelete: Cascade)
+  ratedUser            User @relation("rated", fields: [ratedUserId], references: [userId], onDelete: Cascade)
+
+  @@unique([rideId, raterId, ratedUserId])
+  @@map("ratings")
+}
+
+// Fare Model
+model Fare {
+  fareId               String @id @db.Uuid
+  rideId               String @db.Uuid
+  userId               String @db.Uuid
+  amount               Decimal @db.Decimal(10, 2)
+  paid                 Boolean @default(false)
+  createdAt            DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  ride                 Ride @relation(fields: [rideId], references: [rideId], onDelete: Cascade)
+  user                 User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("fares")
+}
+
+// SOS Alert Model
+model SOSAlert {
+  alertId              String @id @db.Uuid
+  rideId               String @db.Uuid
+  userId               String @db.Uuid
+  alertType            String @db.VarChar(50)
+  latitude             Float
+  longitude            Float
+  status               SOSAlertStatus @default(active)
+  createdAt            DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  ride                 Ride @relation(fields: [rideId], references: [rideId], onDelete: Cascade)
+  user                 User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("sos_alerts")
+}

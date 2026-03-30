@@ -1,9 +1,9 @@
 /**
  * SOS Controller
- * Handles emergency alerts
+ * Handles emergency alerts using Prisma ORM
  */
 
-const pool = require('../db/db');
+const prisma = require('../db/prismaClient');
 const { v4: uuidv4 } = require('uuid');
 
 // @desc    Create SOS alert
@@ -12,49 +12,65 @@ const { v4: uuidv4 } = require('uuid');
 const createSOSAlert = async (req, res) => {
   const { ride_id, user_id, alert_type, latitude, longitude } = req.body;
 
-  const alertId = uuidv4();
-
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    // Use transaction
+    const result = await prisma.$transaction(async (tx) => {
+      const alertId = uuidv4();
 
-    // Create SOS alert
-    const alertResult = await client.query(
-      `INSERT INTO sos_alerts (alert_id, ride_id, user_id, alert_type, latitude, longitude)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-      [alertId, ride_id, user_id, alert_type, latitude, longitude]
-    );
+      // Create SOS alert
+      const alert = await tx.sOSAlert.create({
+        data: {
+          alertId,
+          rideId: ride_id,
+          userId: user_id,
+          alertType: alert_type,
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude),
+          status: "active",
+        },
+      });
 
-    // Notify all participants in the ride
-    const participantsResult = await client.query(
-      `SELECT user_id FROM ride_participants WHERE ride_id = $1 AND user_id != $2`,
-      [ride_id, user_id]
-    );
+      // Get all other participants in the ride
+      const participants = await tx.rideParticipant.findMany({
+        where: {
+          rideId: ride_id,
+          userId: {
+            not: user_id,
+          },
+        },
+      });
 
-    for (const participant of participantsResult.rows) {
-      const notificationId = uuidv4();
-      const notificationMessage = `🚨 SOS Alert: ${alert_type} reported in your ride!`;
-      
-      await client.query(
-        `INSERT INTO notifications (notification_id, user_id, ride_id, message)
-         VALUES ($1, $2, $3, $4)`,
-        [notificationId, participant.user_id, ride_id, notificationMessage]
-      );
-    }
+      // Notify all other participants
+      const notificationPromises = participants.map((participant) => {
+        const notificationId = uuidv4();
+        const notificationMessage = `🚨 SOS Alert: ${alert_type} reported in your ride!`;
 
-    await client.query('COMMIT');
-    res.status(201).json({ 
-      success: true, 
-      data: alertResult.rows[0] 
+        return tx.notification.create({
+          data: {
+            notificationId,
+            userId: participant.userId,
+            rideId: ride_id,
+            messageText: notificationMessage,
+          },
+        });
+      });
+
+      await Promise.all(notificationPromises);
+
+      return alert;
+    });
+
+    res.status(201).json({
+      success: true,
+      data: result,
     });
   } catch (err) {
-    console.error(err);
-
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
+    console.error("Create SOS alert error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Error creating SOS alert",
+      error: err.message,
+    });
   }
 };
 

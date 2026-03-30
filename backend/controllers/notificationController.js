@@ -1,26 +1,35 @@
 /**
  * Notification Controller
- * Handles user notifications
+ * Handles user notifications using Prisma ORM
  */
 
-const pool = require('../db/db');
+const prisma = require('../db/prismaClient');
 
 // @desc    Get user notifications
 // @route   GET /api/notifications/
 // @access  Private
 const getNotifications = async (req, res) => {
-  const user_id  = req.user.userId;
-  
-  const result = await pool.query(
-    `SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC`,
-    [user_id]
-  );
-  
-  res.status(200).json({ 
-    success: true, 
-    count: result.rows.length,
-    data: result.rows 
-  });
+  const user_id = req.user.userId;
+
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { userId: user_id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.status(200).json({
+      success: true,
+      count: notifications.length,
+      data: notifications,
+    });
+  } catch (err) {
+    console.error("Get notifications error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching notifications",
+      error: err.message,
+    });
+  }
 };
 
 // @desc    Mark notification as read
@@ -28,23 +37,31 @@ const getNotifications = async (req, res) => {
 // @access  Private
 const markAsRead = async (req, res) => {
   const { notification_id } = req.params;
-  
-  const result = await pool.query(
-    `UPDATE notifications SET is_read = TRUE WHERE notification_id = $1 RETURNING *`,
-    [notification_id]
-  );
-  
-  if (result.rows.length === 0) {
-    return res.status(404).json({ 
-      success: false, 
-      message: "Notification not found." 
+
+  try {
+    const result = await prisma.notification.update({
+      where: { notificationId: notification_id },
+      data: { isRead: true },
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (err) {
+    if (err.code === "P2025") {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found.",
+      });
+    }
+    console.error("Mark as read error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Error updating notification",
+      error: err.message,
     });
   }
-  
-  res.status(200).json({ 
-    success: true, 
-    data: result.rows[0] 
-  });
 };
 
 module.exports = {
