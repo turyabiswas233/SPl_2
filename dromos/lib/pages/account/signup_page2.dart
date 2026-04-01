@@ -297,6 +297,8 @@ class _SignupPage2State extends State<SignupPage2> {
                     onPressed: _isLoading ? null : _handleSubmit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accentColor,
+                      disabledBackgroundColor: accentColor.withAlpha(100),
+                      disabledIconColor: accentColor.withAlpha(200),
                       padding: const EdgeInsets.symmetric(vertical: 14.0),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(99.0),

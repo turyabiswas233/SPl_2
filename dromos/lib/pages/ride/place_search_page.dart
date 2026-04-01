@@ -440,7 +440,7 @@ class _PlaceSearchPageState extends State<PlaceSearchPage> {
                       vertical: 12,
                     ),
                     itemCount: _suggestions.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final s = _suggestions[index];
                       return _buildSuggestionCard(s);

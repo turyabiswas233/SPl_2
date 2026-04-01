@@ -20,6 +20,7 @@ class RideModel {
   final String tripQrCode;
   final String tripOtp;
   final int maxSeats;
+  final int curPassengers;
   final String status;
   final String preferredGender;
   final DateTime createdAt;
@@ -36,7 +37,8 @@ class RideModel {
     this.destLng = 0.0,
     this.tripQrCode = '',
     this.tripOtp = '',
-    this.maxSeats = 4,
+    this.maxSeats = 1,
+    this.curPassengers = 1,
     this.status = 'open',
     this.preferredGender = 'other',
     DateTime? createdAt,
@@ -56,7 +58,8 @@ class RideModel {
       destLng: (json['destLng'] ?? 0).toDouble(),
       tripQrCode: json['tripQrCode'] ?? '',
       tripOtp: json['tripOtp'] ?? '',
-      maxSeats: json['maxSeats'] ?? 4,
+      maxSeats: json['maxSeats'] ?? 1,
+      curPassengers: (json['participants'] as List).length,
       status: json['status'] ?? RideStatus.open,
       preferredGender: json['preferredGender'] ?? 'other',
       createdAt: json['createdAt'] != null

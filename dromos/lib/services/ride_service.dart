@@ -96,6 +96,29 @@ class RideService {
     return [];
   }
 
+  /// Fetch all ride requests made by the current user.
+  Future<List<RideModel>> fetchMyRequests() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${Api.url}/users/my-requests'),
+        headers: _authHeaders,
+      );
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        if (body['success'] == true && body['data'] != null) {
+          final List<dynamic> requestsJson = body['data'] is List
+              ? body['data']
+              : [body['data']].toList();
+          return requestsJson.map((r) => RideModel.fromJson(r)).toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('RideService.fetchMyRequests error: $e');
+    }
+    return [];
+  }
+
   /// Fetch nearby rides based on current location.
   /// [lng] - Longitude of current location
   /// [lat] - Latitude of current location
@@ -162,6 +185,22 @@ class RideService {
       debugPrint('RideService.cancelRide error: $e');
     }
     return null;
+  }
+
+  /// Start a ride by ID.
+  Future<dynamic> startRide(String rideId) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('${Api.url}/rides/$rideId/start'),
+        headers: _authHeaders,
+      );
+
+      final body = jsonDecode(response.body);
+      return body;
+    } catch (e) {
+      debugPrint('RideService.startRide error: $e');
+      rethrow;
+    }
   }
 
   /// Request to join a ride.
@@ -267,8 +306,59 @@ class RideService {
         );
       }
     } catch (e) {
-      throw e;
+      throw e.toString();
     }
     return null;
+  }
+
+  /// Join a ride by scanning QR code.
+  Future<dynamic> joinByQr({
+    required String tripQrCode,
+    required String userId,
+    required double lat,
+    required double lng,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${Api.url}/handshake/join-by-qr'),
+        headers: _authHeaders,
+        body: jsonEncode({
+          'tripQrCode': tripQrCode,
+          'userId': userId,
+          'met': {'lat': lat, 'lng': lng},
+        }),
+      );
+
+      debugPrint('joinByQr status: ${response.statusCode}');
+      return jsonDecode(response.body);
+    } catch (e) {
+      debugPrint('RideService.joinByQr error: $e');
+      rethrow;
+    }
+  }
+
+  /// Verify ride with OTP.
+  Future<dynamic> verifyRide({
+    required String rideId,
+    required String userId,
+    required String otp,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${Api.url}/handshake/verify'),
+        headers: _authHeaders,
+        body: jsonEncode({
+          'ride_id': rideId,
+          'user_id': userId,
+          'otp': otp,
+        }),
+      );
+
+      debugPrint('verifyRide status: ${response.statusCode}');
+      return jsonDecode(response.body);
+    } catch (e) {
+      debugPrint('RideService.verifyRide error: $e');
+      rethrow;
+    }
   }
 }

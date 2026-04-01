@@ -12,7 +12,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 void main() async {
   SystemChrome.setSystemUIOverlayStyle(
@@ -35,13 +34,6 @@ void main() async {
 
   /// request necessary permissions before app starts
   await _requestPermissions();
-
-  try {
-    /// initialize notification service
-    await NotificationService().initNotification();
-  } catch (e) {
-    debugPrint("Noti Error: $e");
-  }
 
   // Load saved session & fetch profile if token exists
   await UserService().init();
@@ -81,6 +73,10 @@ Future<void> _requestPermissions() async {
 class MyApp extends StatefulWidget {
   final Widget defaultHome;
 
+  // The navigator key is necessary to navigate using static methods
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   const MyApp({super.key, required this.defaultHome});
 
   @override
@@ -95,6 +91,9 @@ class _MyAppState extends State<MyApp> {
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
       _isInternetAvailable,
     );
+
+    NotificationController.startListeningNotificationEvents();
+
     super.initState();
   }
 
@@ -152,7 +151,6 @@ class _MyAppState extends State<MyApp> {
     if (!_isInternetConnected) {
       return NoInternetConnectionScreen(onRetry: _retryConnection);
     }
-
 
     return widget.defaultHome;
   }

@@ -22,6 +22,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   static const Color accentColor = ConstColor.primaryPurple;
   static const Color fColor = ConstColor.primaryColor;
   static const Color bColor = ConstColor.primaryBg;
+  static const Color sColor = ConstColor.secondaryColor;
 
   late final TextEditingController _fullNameCtrl;
   late final TextEditingController _phoneCtrl;
@@ -110,9 +111,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
           'Edit Profile',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: ConstColor.primaryPurple,
-        foregroundColor: bColor,
-        elevation: 0,
+        backgroundColor: accentColor,
+        foregroundColor: sColor,
       ),
       backgroundColor: bColor,
       body: _isLoading
