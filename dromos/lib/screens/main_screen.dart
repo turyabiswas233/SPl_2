@@ -20,7 +20,7 @@ class MainScreenNavigation {
     CreateRidePage(onRideCreated: () => setPage(3)),
     const NearbyRidesPage(),
     const ActivityPage(),
-    AccountPage(),
+    const AccountPage(),
   ];
 }
 
@@ -75,8 +75,8 @@ class _MainScreenState extends State<MainScreen> {
                     selectedColor: ConstColor.primaryPurple,
                   ),
                   SalomonBottomBarItem(
-                    icon: const Icon(Icons.person_outline),
-                    title: const Text("Account"),
+                    icon: const Icon(Icons.settings_rounded),
+                    title: const Text("Settings"),
                     selectedColor: ConstColor.primaryPurple,
                   ),
                 ],

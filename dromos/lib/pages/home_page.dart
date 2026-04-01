@@ -357,7 +357,7 @@ class _HomePageState extends State<HomePage> {
                               child: ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: carImages.length,
-                                separatorBuilder: (_, __) =>
+                                separatorBuilder: (_, _) =>
                                     const SizedBox(width: 15),
                                 itemBuilder: (context, index) {
                                   return Container(

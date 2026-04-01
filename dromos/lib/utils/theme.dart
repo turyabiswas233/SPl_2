@@ -6,7 +6,7 @@ import 'package:dromos/utils/colors.dart';
 ThemeData appTheme() {
   Color pc = ConstColor.primaryColor;
   Color pbc = ConstColor.primaryBg;
-  Color accentColor = ConstColor.primaryPurple;
+  Color accentColor = ConstColor.primaryPurple.withAlpha(250);
  
   return ThemeData(
     useSystemColors: false,

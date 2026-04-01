@@ -128,11 +128,11 @@ class _LoginScreenState extends State<LoginPage> {
           // Navigate to main screen
           _navigateToMainScreen();
         } else {
-          NotificationService().showNotification(
-            id: "login_faile",
-            title: "Login Failed",
-            body:
-                "Invalid Credentials. Please check your internet connection and try again.",
+          NotificationController.createNewNotification(
+            "Login Failed",
+            "Invalid Credentials. Please check your internet connection and try again.",
+            "login_failed",
+            "login_failed",
           );
           _showErrorDialog(
             "Login Failed",
@@ -141,11 +141,11 @@ class _LoginScreenState extends State<LoginPage> {
           );
         }
       } else {
-        NotificationService().showNotification(
-          id: "login_faile",
-          title: "Login Failed",
-          body:
-              "Invalid Credentials. Please check your internet connection and try again.",
+        NotificationController.createNewNotification(
+          "Login Failed",
+          "Invalid Credentials. Please check your internet connection and try again.",
+          "login_failed",
+          "login_failed",
         );
         _showErrorDialog(
           "Login Failed",
@@ -256,6 +256,8 @@ class _LoginScreenState extends State<LoginPage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accentColor,
                       overlayColor: pbc.withAlpha(20),
+                      disabledBackgroundColor: accentColor.withAlpha(100),
+                      disabledIconColor: accentColor.withAlpha(200),
                       iconSize: 20,
                       iconColor: pbc,
                       padding: const EdgeInsets.symmetric(vertical: 14.0),

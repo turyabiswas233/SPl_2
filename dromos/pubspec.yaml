@@ -4,7 +4,7 @@ description: "A new Ride Sharing Flutter project."
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.0+1
+version: 1.2.0+1
 
 environment:
   sdk: ^3.10.0
@@ -24,9 +24,10 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   flutter_svg: ^2.2.2
-  google_fonts: ^6.3.2
+  google_fonts: ^8.0.2
   permission_handler: ^12.0.1
-  flutter_local_notifications: ^19.5.0
+  awesome_notifications: ^0.11.0
+#  flutter_local_notifications: ^21.0.0
   salomon_bottom_bar: ^3.3.2
   google_mlkit_text_recognition: ^0.15.0
   image_picker: ^1.1.2
@@ -36,16 +37,19 @@ dependencies:
   geocoding: ^4.0.0
   flutter_native_splash: ^2.4.7
   lottie: ^3.3.2
-  connectivity_plus: ^6.1.5
-  flutter_dotenv: ^5.2.1
+  connectivity_plus: ^7.1.0
+  flutter_dotenv: ^6.0.0
   qr_flutter: ^4.1.0
   mapbox_maps_flutter: ^2.20.1
+  mobile_scanner: ^7.2.0
+  pinput: ^6.0.2
+  package_info_plus: ^9.0.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
  
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

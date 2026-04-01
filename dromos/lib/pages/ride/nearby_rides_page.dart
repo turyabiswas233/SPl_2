@@ -108,9 +108,8 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
             SnackBar(
               content: Text(
                 result?['message'] ?? 'Failed to send request',
-                style: const TextStyle(color: Colors.red),
               ),
-              backgroundColor: Colors.red.shade50,
+              backgroundColor: ConstColor.error.withAlpha(150),
             ),
           );
         }
@@ -279,7 +278,7 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
         ? (ride.availableSeats / ride.maxSeats * 100).toInt()
         : 0;
 
-    String _parseDistance(double distance) {
+    String parseDistance(double distance) {
       if (distance < 1000) {
         return '${distance.toStringAsFixed(0)} m';
       } else {
@@ -328,7 +327,7 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        "${ride.destinationName} (${_parseDistance(ride.travellingDistance)})",
+                        "${ride.destinationName} (${parseDistance(ride.travellingDistance)})",
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,

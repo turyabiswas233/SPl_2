@@ -1,8 +1,10 @@
 import 'package:dromos/pages/home/default_page.dart';
 import 'package:dromos/pages/profile/editprofile_page.dart';
+import 'package:dromos/services/app_version.dart';
 import 'package:dromos/services/user_service.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/utils/colors.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -17,11 +19,19 @@ class _AccountPageState extends State<AccountPage> {
 
   static const Color accentColor = ConstColor.primaryPurple;
   static const Color fColor = ConstColor.primaryColor;
-  static const Color bColor = ConstColor.primaryBg;
+  static const Color bColor = ConstColor.secondaryColor;
+  String? packageName;
+  String? appVersion;
 
   @override
   void initState() {
     super.initState();
+    PackageInfo.fromPlatform().then((PackageInfo pi) {
+      setState(() {
+        packageName = pi.packageName;
+        appVersion = pi.version;
+      });
+    });
     // Refresh profile on page load if data is stale
     if (_userService.currentUser.isEmpty && _userService.isLoggedIn) {
       _refreshProfile();
@@ -50,7 +60,8 @@ class _AccountPageState extends State<AccountPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Account'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: ConstColor.primaryPurple,
+        toolbarHeight: 0.0,
         foregroundColor: ConstColor.primaryColor,
       ),
       backgroundColor: ConstColor.primaryBg,
@@ -79,8 +90,10 @@ class _AccountPageState extends State<AccountPage> {
                         padding: const EdgeInsets.symmetric(
                           horizontal: 48,
                           vertical: 12,
-                        ), // Adjust padding
-                        minimumSize: Size.zero, // Remove default min size
+                        ),
+                        // Adjust padding
+                        minimumSize: Size.zero,
+                        // Remove default min size
                         tapTargetSize: MaterialTapTargetSize
                             .shrinkWrap, // Remove extra space
                       ),
@@ -98,6 +111,7 @@ class _AccountPageState extends State<AccountPage> {
 
                 const SizedBox(height: 24),
                 _buildActionButtons(),
+                const AppVersion(),
               ],
             ),
     );
@@ -156,9 +170,6 @@ class _AccountPageState extends State<AccountPage> {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
         children: [
-          _buildListTile('Settings', Icons.settings_outlined, () {
-            // Navigate to Settings page
-          }),
           _buildListTile('File a Complain', Icons.report_problem_outlined, () {
             // Navigate to Complain page
           }),

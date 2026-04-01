@@ -16,29 +16,34 @@ import 'package:http/http.dart' as http;
 ///   final unread = handler.unreadCount;
 class NotificationHandler {
   static final NotificationHandler _instance = NotificationHandler._internal();
+
   factory NotificationHandler() => _instance;
+
   NotificationHandler._internal();
 
   final _userService = UserService();
-  final _localNotificationService = NotificationService();
 
   List<NotificationModel> _notifications = [];
   bool _isLoading = false;
 
-  List<NotificationModel> get notifications => List.unmodifiable(_notifications);
+  List<NotificationModel> get notifications =>
+      List.unmodifiable(_notifications);
+
   bool get isLoading => _isLoading;
-  int get unreadCount =>
-      _notifications.where((n) => !n.isRead).length;
+
+  int get unreadCount => _notifications.where((n) => !n.isRead).length;
+
   int get totalCount => _notifications.length;
 
   /// Stream controller to broadcast notification updates.
   final _controller = StreamController<List<NotificationModel>>.broadcast();
+
   Stream<List<NotificationModel>> get notificationStream => _controller.stream;
 
   Map<String, String> get _authHeaders => {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${_userService.token}',
-      };
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ${_userService.token}',
+  };
 
   /// Fetch notifications from the server.
   Future<List<NotificationModel>> fetchNotifications() async {
@@ -59,18 +64,21 @@ class NotificationHandler {
         final body = jsonDecode(response.body);
         if (body['success'] == true && body['data'] != null) {
           final List<dynamic> list = body['data'];
-          final fetched =
-              list.map((n) => NotificationModel.fromJson(n)).toList();
+          final fetched = list
+              .map((n) => NotificationModel.fromJson(n))
+              .toList();
 
           // Check for new unread notifications and show local notification
           for (final n in fetched) {
-            final alreadyExists =
-                _notifications.any((e) => e.notificationId == n.notificationId);
+            final alreadyExists = _notifications.any(
+              (e) => e.notificationId == n.notificationId,
+            );
             if (!alreadyExists && !n.isRead) {
-              _localNotificationService.showNotification(
-                id: n.notificationId,
-                title: 'Dromos',
-                body: n.message,
+              NotificationController.createNewNotification(
+                'Dromos',
+                n.message,
+                n.notificationId,
+                n.notificationId,
               );
             }
           }
