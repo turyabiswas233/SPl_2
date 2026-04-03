@@ -1,5 +1,6 @@
 import 'package:dromos/pages/account/login_page.dart';
 import 'package:dromos/pages/account/signup_page.dart';
+import 'package:dromos/services/app_version.dart';
 import 'package:dromos/utils/fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/utils/colors.dart';
@@ -136,10 +137,11 @@ class _DefaultPage extends DefaultHomeScreen {
                 ),
 
                 Container(
-                  margin: EdgeInsets.only(top: 150),
+                  margin: EdgeInsets.only(top: 150, bottom: 20),
                   padding: const EdgeInsets.all(24),
                   child: Column(spacing: 24, children: [...buttons]),
                 ),
+                const AppVersion(),
               ],
             ),
           ),

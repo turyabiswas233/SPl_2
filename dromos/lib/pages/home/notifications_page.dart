@@ -42,8 +42,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
             Center(
               child: Container(
                 margin: const EdgeInsets.only(right: 16),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withAlpha(30),
                   borderRadius: BorderRadius.circular(20),
@@ -58,24 +60,25 @@ class _NotificationsPageState extends State<NotificationsPage> {
       ),
       body: _isLoading
           ? const Center(
-              child:
-                  CircularProgressIndicator(color: ConstColor.primaryPurple),
+              child: CircularProgressIndicator(color: ConstColor.primaryPurple),
             )
           : notifications.isEmpty
-              ? _buildEmpty()
-              : RefreshIndicator(
-                  onRefresh: _refresh,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: notifications.length,
-                    separatorBuilder: (_, _) =>
-                        const Divider(height: 1, indent: 72),
-                    itemBuilder: (context, index) {
-                      return _NotificationTile(
-                          notification: notifications[index]);
-                    },
-                  ),
-                ),
+          ? _buildEmpty()
+          : RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: notifications.length,
+                separatorBuilder: (_, _) =>
+                    const Divider(height: 1, indent: 72),
+                itemBuilder: (context, index) {
+                  return _NotificationTile(
+                    notification: notifications[index],
+                    handler: _handler,
+                  );
+                },
+              ),
+            ),
     );
   }
 
@@ -84,8 +87,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.notifications_off_outlined,
-              size: 72, color: Colors.grey.shade300),
+          Icon(
+            Icons.notifications_off_outlined,
+            size: 72,
+            color: Colors.grey.shade300,
+          ),
           const SizedBox(height: 16),
           Text(
             'No notifications yet',
@@ -108,14 +114,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
 class _NotificationTile extends StatelessWidget {
   final NotificationModel notification;
+  final NotificationHandler handler;
 
-  const _NotificationTile({required this.notification});
+  const _NotificationTile({required this.notification, required this.handler});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: notification.isRead ? Colors.transparent : ConstColor.primaryPurple.withAlpha(8),
+      color: notification.isRead
+          ? Colors.transparent
+          : ConstColor.primaryPurple.withAlpha(8),
       child: ListTile(
+        onTap: () => handler.markAsRead(notification.notificationId),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         leading: Container(
           width: 44,
@@ -128,9 +138,7 @@ class _NotificationTile extends StatelessWidget {
           ),
           child: Icon(
             _getIcon(),
-            color: notification.isRead
-                ? Colors.grey
-                : ConstColor.primaryPurple,
+            color: notification.isRead ? Colors.grey : ConstColor.primaryPurple,
             size: 22,
           ),
         ),

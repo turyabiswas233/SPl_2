@@ -87,7 +87,7 @@ class RideModel {
     };
   }
 
-  bool get isOpen => status.toLowerCase() == 'open';
+  bool get isOpen => status.toLowerCase() == 'open' || status.toLowerCase() == 'in_progress';
   bool get isEmpty => rideId.isEmpty;
 
   @override

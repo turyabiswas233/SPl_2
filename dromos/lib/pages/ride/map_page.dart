@@ -1,4 +1,5 @@
 import 'package:dromos/models/ride_model.dart';
+import 'package:dromos/services/ride_service.dart';
 import 'package:dromos/utils/location.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -15,86 +16,86 @@ class MapSample extends StatefulWidget {
 
 class _MapSampleState extends State<MapSample> {
   static const Map<String, String> _mapStyles = {
-    'Streets': 'mapbox://styles/mapbox/streets-v12',
-    'Outdoors': 'mapbox://styles/mapbox/outdoors-v12',
     'Light': 'mapbox://styles/mapbox/light-v11',
     'Dark': 'mapbox://styles/mapbox/dark-v11',
-    'Satellite': 'mapbox://styles/mapbox/satellite-v9',
-    'Satellite Streets': 'mapbox://styles/mapbox/satellite-streets-v12',
-    'Navigation Day': 'mapbox://styles/mapbox/navigation-day-v1',
-    'Navigation Night': 'mapbox://styles/mapbox/navigation-night-v1',
   };
 
-  String _currentStyle = _mapStyles['Navigation Day']!;
+  String _currentStyle = _mapStyles['Light']!;
 
   MapboxMap? mapboxMap;
   PolylineAnnotationManager? polylineAnnotationManager;
 
   Future<void> _onMapCreated(MapboxMap map) async {
     try {
-      dynamic accessToken = dotenv.env['MAPBOX_ACCESS_TOKEN'];
-      if (accessToken.isNotEmpty) {
+      // Ensure dotenv is loaded
+      if (!dotenv.isInitialized) {
+        await dotenv.load(fileName: '.env.local');
+      }
+
+      String? accessToken = dotenv.env['MAPBOX_ACCESS_TOKEN'];
+      if (accessToken != null && accessToken.isNotEmpty) {
         MapboxOptions.setAccessToken(accessToken);
       } else {
         debugPrint(
-          "Warning: MAPBOX_ACCESS_TOKEN is not set in .env. Map features may not work properly.",
+          "Warning: MAPBOX_ACCESS_TOKEN is missing or empty in .env.local",
         );
       }
+
       mapboxMap = map;
       mapboxMap?.compass.updateSettings(CompassSettings(enabled: false));
       mapboxMap?.scaleBar.updateSettings(ScaleBarSettings(enabled: false));
 
       polylineAnnotationManager = await map.annotations
           .createPolylineAnnotationManager();
-      await _drawRoute();
+
+      if (widget.ride != null) {
+        await _drawRoute();
+      }
     } catch (e) {
-      debugPrint("ERROR: $e");
+      debugPrint("Map creation error: $e");
     }
   }
 
   Future<void> _drawRoute() async {
-    // your existing route drawing logic
+    if (widget.ride == null) return;
+    try {
+      RideService rideService = RideService();
+      dynamic routes = await rideService.getRoute(
+        startLng: widget.ride!.startLng,
+        startLat: widget.ride!.startLat,
+        destLng: widget.ride!.destLng,
+        destLat: widget.ride!.destLat,
+      );
+      debugPrint(routes['routes'][0].toString());
+    } catch (e) {
+      debugPrint("Draw route error: $e");
+    }
   }
 
-  void _changeStyle(String styleUri) {
-    setState(() {
-      _currentStyle = styleUri;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
+    // Determine camera center safely
+    final Point cameraCenter = widget.ride != null
+        ? Point(
+            coordinates: Position(widget.ride!.startLng, widget.ride!.startLat),
+          )
+        : Point(coordinates: Position(0.0, 0.0)); // Fallback center
+
     return Column(
       children: [
-        // Theme buttons
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: _mapStyles.entries.map((entry) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: ElevatedButton(
-                  onPressed: () => _changeStyle(entry.value),
-                  child: Text(entry.key),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        Expanded(
+          Expanded(
           child: Stack(
             children: [
               MapWidget(
                 key: const ValueKey('mapWidget'),
                 styleUri: _currentStyle,
                 onMapCreated: _onMapCreated,
+                onScrollListener: (position) {
+                  debugPrint(position.toString());
+                },
                 cameraOptions: CameraOptions(
-                  center: Point(
-                    coordinates: Position(
-                      LocationInfo.cord!.longitude,
-                      LocationInfo.cord!.latitude,
-                    ),
-                  ),
+                  center: cameraCenter,
                   zoom: 14,
                   pitch: 0,
                   bearing: 0,

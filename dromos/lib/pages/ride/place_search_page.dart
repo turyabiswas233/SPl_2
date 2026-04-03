@@ -226,7 +226,6 @@ class _PlaceSearchPageState extends State<PlaceSearchPage> {
             suggestion.mainText,
             suggestion.district,
             suggestion.region,
-            suggestion.country,
           ].where((e) => e.isNotEmpty).join(', ');
 
     if (!mounted) return;

@@ -5,7 +5,7 @@ class NotificationModel {
   final String userId;
   final String rideId;
   final String message;
-  final bool isRead;
+  bool isRead;
   final DateTime createdAt;
 
   NotificationModel({
