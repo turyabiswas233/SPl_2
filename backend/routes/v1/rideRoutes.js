@@ -25,8 +25,8 @@ router.get('/nearby', protect, asyncHandler(getNearbyRides));
 // @route   GET /api/v1/rides/:ride_id
 router.get('/:ride_id', validateUUID('ride_id'), asyncHandler(getRideById));
 
-// @route   POST /api/v1/rides/:ride_id/start
-router.post('/:ride_id/start', protect, validateUUID('ride_id'), asyncHandler(startRide));
+// @route   PATCH /api/v1/rides/:ride_id/start
+router.patch('/:ride_id/start', protect, validateUUID('ride_id'), asyncHandler(startRide));
 
 // @route   POST /api/v1/rides/:ride_id/complete
 router.post('/:ride_id/complete', validateUUID('ride_id'), asyncHandler(completeRide));

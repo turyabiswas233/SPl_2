@@ -10,6 +10,58 @@ const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
 const { clog } = require("../utils/log");
 
+/**
+ * @swagger
+ * /api/v1/auth/register:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - fullName
+ *               - email
+ *               - password
+ *             properties:
+ *               fullName:
+ *                 type: string
+ *                 description: User's full name
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email
+ *               password:
+ *                 type: string
+ *                 description: User's password
+ *               phoneNumber:
+ *                 type: string
+ *                 description: User's phone number
+ *               registrationNumber:
+ *                 type: string
+ *                 description: User's registration number
+ *               deptName:
+ *                 type: string
+ *                 description: Department name
+ *               hallName:
+ *                 type: string
+ *                 description: Hall name
+ *               gender:
+ *                 type: string
+ *                 enum: [male, female, other]
+ *                 description: User's gender
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Server error
+ */
+
 // @desc    Register new user
 // @route   POST /api/auth/register
 // @access  Public
@@ -87,6 +139,51 @@ const register = async (req, res) => {
     });
   }
 };
+
+/**
+ * @swagger
+ * /api/v1/auth/login:
+ *   post:
+ *     summary: Login user
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email
+ *               password:
+ *                 type: string
+ *                 description: User's password
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 token:
+ *                   type: string
+ *                   description: JWT token
+ *                 user:
+ *                   type: object
+ *                   description: User data
+ *       400:
+ *         description: Invalid credentials
+ *       500:
+ *         description: Server error
+ */
 
 // @desc    Login user
 // @route   POST /api/auth/login

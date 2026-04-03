@@ -6,6 +6,7 @@
 const prisma = require('../db/prismaClient');
 const { v4: uuidv4 } = require('uuid');
 const { clog } = require('../utils/log');
+const { postNotification } = require('./notificationController');
 
 // @desc    Request to join a ride
 // @route   POST /api/rides/:ride_id/requests
@@ -72,16 +73,9 @@ const createRideRequest = async (req, res) => {
         },
       });
 
-      // Notify ride initiator
+      // Notify ride initiator using notification service
       const notificationMessage = `${requester.fullName} has requested to join your ride to ${ride.destinationName}.`;
-      await tx.notification.create({
-        data: {
-          notificationId,
-          userId: ride.initiatorId,
-          rideId: ride_id,
-          messageText: notificationMessage,
-        },
-      });
+      await postNotification(ride.initiatorId, notificationMessage, ride_id, tx);
 
       return rideRequest;
     });
@@ -156,17 +150,9 @@ const updateRideRequest = async (req, res) => {
           },
         });
 
-        // Notify requester
-        const notificationId = uuidv4();
+        // Notify requester using notification service
         const notificationMessage = `Your request to join the ride to ${rideRequest.ride.destinationName} has been accepted!`;
-        await tx.notification.create({
-          data: {
-            notificationId,
-            userId: rideRequest.requesterId,
-            rideId: ride_id,
-            message: notificationMessage,
-          },
-        });
+        await postNotification(rideRequest.requesterId, notificationMessage, ride_id, tx);
       } else if (action === "reject") {
         // Update request status to rejected
         await tx.rideRequest.update({
@@ -174,17 +160,9 @@ const updateRideRequest = async (req, res) => {
           data: { status: "rejected" },
         });
 
-        // Notify requester
-        const notificationId = uuidv4();
+        // Notify requester using notification service
         const notificationMessage = `Your request to join the ride to ${rideRequest.ride.destinationName} was not accepted.`;
-        await tx.notification.create({
-          data: {
-            notificationId,
-            userId: rideRequest.requesterId,
-            rideId: ride_id,
-            message: notificationMessage,
-          },
-        });
+        await postNotification(rideRequest.requesterId, notificationMessage, ride_id, tx);
       }
 
       return rideRequest;
@@ -206,5 +184,5 @@ const updateRideRequest = async (req, res) => {
 
 module.exports = {
   createRideRequest,
-  updateRideRequest
+  updateRideRequest,
 };

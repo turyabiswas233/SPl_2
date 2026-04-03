@@ -124,6 +124,29 @@ const validateUUID = (paramName) => (req, res, next) => {
   next();
 };
 
+const validateJoinByQr = (req, res, next) => {
+  const { tripQrCode, userId } = req.body;
+
+  if (!tripQrCode || !userId) {
+    return res.status(400).json({
+      success: false,
+      error: "Missing required fields: tripQrCode and userId",
+    });
+  }
+
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  if (!uuidRegex.test(userId)) {
+    return res.status(400).json({
+      success: false,
+      error: "Invalid userId format",
+    });
+  }
+
+  next();
+};
+
 module.exports = {
   validateRegistration,
   validateLogin,
@@ -131,4 +154,5 @@ module.exports = {
   validateMovementTracking,
   validateRating,
   validateUUID,
+  validateJoinByQr,
 };

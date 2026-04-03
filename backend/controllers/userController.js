@@ -64,7 +64,7 @@ const getUserProfile = async (req, res) => {
 };
 
 // @desc    Get user ride history
-// @route   GET /api/users/:user_id/ride-history
+// @route   GET /api/users/ride-history
 // @access  Private
 const getUserRideHistory = async (req, res) => {
   const user_id = req.user.userId;
@@ -102,6 +102,7 @@ const getUserRideHistory = async (req, res) => {
     // Format the response to match the old query structure
     const formattedData = rideHistory.map((rp) => ({
       ...rp.ride,
+      maxSeats: rp.ride.maxSeats - 1, // Adjust maxSeats to reflect available seats
       initiator_name: rp.ride.initiator.fullName,
       has_met: rp.hasMetBoolean,
       met_at: rp.metAt,
@@ -121,7 +122,62 @@ const getUserRideHistory = async (req, res) => {
   }
 };
 
+// @desc    Get all rides requested by current user
+// @route   GET /api/users/my-requests
+// @access  Private
+const getUserRequestedRides = async (req, res) => {
+  const user_id = req.user.userId;
+
+  try {
+    const requestedRides = await prisma.rideRequest.findMany({
+      where: { requesterId: user_id },
+      include: {
+        ride: {
+          include: {
+            initiator: {
+              select: {
+                fullName: true,
+              },
+            },
+            participants: {
+              where: {
+                userId: { not: user_id },
+              },
+              select: {
+                userId: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    // Format the response to match the ride history pattern
+    const formattedData = requestedRides.map((rr) => ({
+      ...rr.ride,
+      initiator_name: rr.ride.initiator.fullName,
+      request_status: rr.status,
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: formattedData.length,
+      data: formattedData,
+    });
+  } catch (error) {
+    console.error("Get requested rides error:", error);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching requested rides",
+    });
+  }
+};
+
 module.exports = {
   getUserProfile,
   getUserRideHistory,
+  getUserRequestedRides,
 };

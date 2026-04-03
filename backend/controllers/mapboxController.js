@@ -21,6 +21,7 @@ const getLocationsBySearch = async (req, res) => {
         query: searchQuery,
         limit: lm,
         types: ["place", "locality", "address", "district", "poi"],
+        mode: "mapbox.places",
         countries: ["BD"],
         language: ["en"],
       })
@@ -56,10 +57,10 @@ const getRoute = async (req, res) => {
           { coordinates: [parseFloat(startLng), parseFloat(startLat)] },
           { coordinates: [parseFloat(destLng), parseFloat(destLat)] },
         ],
-        geometries: geometries,
+        geometries: geometries ? geometries : 'geojson',
         language: "en",
         overview: "full",
-        steps: steps == "true",
+        steps: steps == "true" ? true : false,
       })
       .send();
 
@@ -107,7 +108,7 @@ const getPlaceNameFromCoords = async (req, res) => {
       const features = response.body.features;
       if (features && features.length > 0) {
         const placeData = {
-          place_name: features[0].place_name,
+          place_name: `${features[0].place_name}`,
           coordinates: features[0].geometry.coordinates,
           all_results: features,
         };

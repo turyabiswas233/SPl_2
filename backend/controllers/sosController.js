@@ -5,6 +5,7 @@
 
 const prisma = require('../db/prismaClient');
 const { v4: uuidv4 } = require('uuid');
+const { postNotifications } = require('./notificationController');
 
 // @desc    Create SOS alert
 // @route   POST /api/sos
@@ -40,22 +41,16 @@ const createSOSAlert = async (req, res) => {
         },
       });
 
-      // Notify all other participants
-      const notificationPromises = participants.map((participant) => {
-        const notificationId = uuidv4();
-        const notificationMessage = `🚨 SOS Alert: ${alert_type} reported in your ride!`;
+      // Notify all other participants using notification service
+      const notificationsList = participants.map((participant) => ({
+        userId: participant.userId,
+        messageText: `🚨 SOS Alert: ${alert_type} reported in your ride!`,
+        rideId: ride_id,
+      }));
 
-        return tx.notification.create({
-          data: {
-            notificationId,
-            userId: participant.userId,
-            rideId: ride_id,
-            messageText: notificationMessage,
-          },
-        });
-      });
-
-      await Promise.all(notificationPromises);
+      if (notificationsList.length > 0) {
+        await postNotifications(notificationsList, tx);
+      }
 
       return alert;
     });

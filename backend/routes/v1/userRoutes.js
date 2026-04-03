@@ -5,12 +5,14 @@
 
 const express = require("express");
 const router = express.Router();
-const { getUserRideHistory } = require("../../controllers/userController");
+const { getUserRideHistory, getUserRequestedRides } = require("../../controllers/userController");
 
 const asyncHandler = require("../../middleware/asyncHandler");
 const { protect } = require("../../middleware/auth");
 
 // @route   GET /api/v1/users/ride-history
 router.get("/ride-history", protect, asyncHandler(getUserRideHistory));
+// @route   GET /api/v1/users/my-requests
+router.get("/my-requests", protect, asyncHandler(getUserRequestedRides));
 
 module.exports = router;

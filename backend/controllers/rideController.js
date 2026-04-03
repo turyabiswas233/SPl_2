@@ -8,6 +8,63 @@ const crypto = require("crypto");
 const { v4: uuidv4 } = require("uuid");
 const { clog } = require("../utils/log");
 const { log } = require("console");
+const {
+  postNotification,
+  postNotifications,
+} = require("./notificationController");
+const { io } = require("../index");
+/**
+ * @swagger
+ * /api/v1/rides:
+ *   post:
+ *     summary: Create a new ride
+ *     tags: [Rides]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - startLat
+ *               - startLng
+ *               - destination
+ *               - destLat
+ *               - destLng
+ *               - maxSeats
+ *             properties:
+ *               startLat:
+ *                 type: number
+ *                 description: Starting latitude
+ *               startLng:
+ *                 type: number
+ *                 description: Starting longitude
+ *               destination:
+ *                 type: string
+ *                 description: Destination name
+ *               destLat:
+ *                 type: number
+ *                 description: Destination latitude
+ *               destLng:
+ *                 type: number
+ *                 description: Destination longitude
+ *               maxSeats:
+ *                 type: integer
+ *                 description: Maximum number of seats
+ *               preferredGender:
+ *                 type: string
+ *                 enum: [male, female, other]
+ *                 description: Preferred gender for passengers
+ *     responses:
+ *       201:
+ *         description: Ride created successfully
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Server error
+ */
 
 // @desc    Create a new ride
 // @route   POST /api/rides
@@ -23,29 +80,42 @@ const createRide = async (req, res) => {
     maxSeats,
   } = req.body;
   const initiator_id = req.user.userId;
-  
+
   try {
     const qrCode = crypto.randomBytes(16).toString("hex");
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const rideId = uuidv4();
     const participantId = initiator_id;
     const rideParticipantId = uuidv4();
-    const notificationId = uuidv4();
 
     // Use transaction to create ride, participant, and notification atomically
     const result = await prisma.$transaction(async (tx) => {
       // retrive mapbox place name from start cords
-      const place = await fetch(
-        process.env.API_URL +
-          "/api/v1/mapbox/place-name?lng=" +
-          startLng +
-          "&lat=" +
-          startLat,
-        {
-          method: "GET",
-        },
-      ).then((res) => res.json());
-      const startLocation = place.place_name || req.body.startLocation;
+      // const place = await fetch(
+      //   process.env.API_URL +
+      //     "/api/v1/mapbox/place-name?lng=" +
+      //     startLng +
+      //     "&lat=" +
+      //     startLat,
+      //   {
+      //     method: "GET",
+      //   },
+      // ).then((res) => res.json());
+      const startLocation = req.body.startLocation;
+      // const destplace = await fetch(
+      //   process.env.API_URL +
+      //     "/api/v1/mapbox/place-name?lng=" +
+      //     destLng +
+      //     "&lat=" +
+      //     destLat,
+      //   {
+      //     method: "GET",
+      //   },
+      // ).then((res) => res.json());
+      // clog("Start place data: " + JSON.stringify(place), "warn");
+      // clog("Destination place data: " + JSON.stringify(destplace), "warn");
+      const destLocation = req.body.destination;
+
       // Create ride
       const ride = await tx.ride.create({
         data: {
@@ -54,19 +124,19 @@ const createRide = async (req, res) => {
           startLocation: startLocation,
           startLat: startLat,
           startLng: startLng,
-          destinationName: destination,
+          destinationName: destLocation,
           destLat: destLat,
           destLng: destLng,
           tripQrCode: qrCode,
           tripOtp: otp,
           preferredGender: preferredGender || "any",
-          maxSeats: maxSeats,
+          maxSeats: maxSeats + 1,
           status: "open",
         },
       });
 
       // Create ride participant (initiator joins their own ride)
-      await tx.rideParticipant.create({
+      const participant = await tx.rideParticipant.create({
         data: {
           rideParticipantId,
           rideId,
@@ -79,18 +149,21 @@ const createRide = async (req, res) => {
         },
       });
 
-      // Create notification
+      // Create notification using notification service
       const notificationMessage = `Your ride from ${startLocation} to ${destination} has been created successfully.`;
-      await tx.notification.create({
-        data: {
-          notificationId,
-          userId: initiator_id,
-          rideId,
-          messageText: notificationMessage,
-        },
-      });
+      await postNotification(initiator_id, notificationMessage, rideId, tx);
 
-      return ride;
+      if (io)
+        io.on("connecion", (socket) => {
+          socket.emit("rideCreated", {
+            rideId: ride.rideId,
+          });
+        });
+
+      return {
+        ...ride,
+        participants: [participant],
+      };
     });
 
     res.status(201).json({
@@ -98,7 +171,7 @@ const createRide = async (req, res) => {
       data: result,
     });
   } catch (err) {
-    clog("Create ride error:"+ err, "error");
+    clog("Create ride error:" + err, "error");
     res.status(500).json({
       success: false,
       message: "Error creating ride",
@@ -106,6 +179,49 @@ const createRide = async (req, res) => {
     });
   }
 };
+
+/**
+ * @swagger
+ * /api/v1/rides:
+ *   get:
+ *     summary: Get all available rides
+ *     tags: [Rides]
+ *     parameters:
+ *       - in: query
+ *         name: gender_filter
+ *         schema:
+ *           type: string
+ *           enum: [male, female, other]
+ *         description: Filter by preferred gender
+ *       - in: query
+ *         name: min_seats
+ *         schema:
+ *           type: integer
+ *         description: Minimum number of seats required
+ *       - in: query
+ *         name: destination
+ *         schema:
+ *           type: string
+ *         description: Filter by destination name
+ *     responses:
+ *       200:
+ *         description: List of rides
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 count:
+ *                   type: integer
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       500:
+ *         description: Server error
+ */
 
 // @desc    Browse available rides
 // @route   GET /api/rides
@@ -180,6 +296,29 @@ const getRides = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/v1/rides/{ride_id}:
+ *   get:
+ *     summary: Get ride details by ID
+ *     tags: [Rides]
+ *     parameters:
+ *       - in: path
+ *         name: ride_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Ride ID
+ *     responses:
+ *       200:
+ *         description: Ride details
+ *       404:
+ *         description: Ride not found
+ *       500:
+ *         description: Server error
+ */
+
 // @desc    Get specific ride details
 // @route   GET /api/rides/:ride_id
 // @access  Public
@@ -246,6 +385,37 @@ const getRideById = async (req, res) => {
     });
   }
 };
+
+/**
+ * @swagger
+ * /api/v1/rides/nearby:
+ *   get:
+ *     summary: Get nearby rides
+ *     tags: [Rides]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: lng
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: User's longitude
+ *       - in: query
+ *         name: lat
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: User's latitude
+ *     responses:
+ *       200:
+ *         description: List of nearby rides
+ *       400:
+ *         description: Missing coordinates
+ *       500:
+ *         description: Server error
+ */
+
 // @desc    Find nearby open rides
 // @route   GET /api/rides/nearby
 // @access  Private
@@ -277,6 +447,11 @@ const getNearbyRides = async (req, res) => {
     const openRides = await prisma.ride.findMany({
       where: {
         status: "open",
+        requests: {
+          none: {
+            requesterId: currentUserId,
+          },
+        },
       },
       include: {
         initiator: {
@@ -290,7 +465,7 @@ const getNearbyRides = async (req, res) => {
       },
     });
 
-    log("Total open rides found: " + openRides.toString());
+    log("Total open rides found: " + openRides.length);
 
     // Helper function to calculate distance using Haversine formula
     const calculateDistance = (lat1, lng1, lat2, lng2) => {
@@ -304,6 +479,7 @@ const getNearbyRides = async (req, res) => {
           Math.sin(dLng / 2) *
           Math.sin(dLng / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      console.log(R * c);
       return R * c; // Distance in meters
     };
 
@@ -311,7 +487,8 @@ const getNearbyRides = async (req, res) => {
     const nearbyRides = openRides
       .filter((ride) => {
         // Exclude rides created by the current user
-        if (currentUserId && ride.initiatorId === currentUserId) {
+        if (ride.initiatorId === currentUserId) {
+          console.log(ride.initiatorId, currentUserId);
           return false;
         }
         // Calculate distance from user location to ride start location
@@ -329,7 +506,7 @@ const getNearbyRides = async (req, res) => {
         initiatorName: ride.initiator.fullName,
         initiatorPhone: ride.initiator.phoneNumber,
         current_passengers: ride.participants.length,
-        available_seats: ride.maxSeats - ride.participants.length + 1,
+        available_seats: ride.maxSeats - ride.participants.length,
         distance: Number(
           calculateDistance(
             userLat,
@@ -379,6 +556,44 @@ const getNearbyRides = async (req, res) => {
     });
   }
 };
+
+/**
+ * @swagger
+ * /api/v1/rides/{ride_id}/complete:
+ *   post:
+ *     summary: Complete a ride
+ *     tags: [Rides]
+ *     parameters:
+ *       - in: path
+ *         name: ride_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Ride ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - initiator_id
+ *             properties:
+ *               initiator_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Initiator user ID
+ *               total_fare:
+ *                 type: number
+ *                 description: Total fare amount
+ *     responses:
+ *       200:
+ *         description: Ride completed successfully
+ *       500:
+ *         description: Server error
+ */
+
 // @desc    Complete a trip
 // @route   POST /api/rides/:ride_id/complete
 // @access  Private
@@ -430,23 +645,16 @@ const completeRide = async (req, res) => {
         await Promise.all(farePromises);
       }
 
-      // Notify all participants
-      const notificationPromises = participants.map((participant) => {
-        const notificationMessage = total_fare
+      // Notify all participants using notification service
+      const notificationsList = participants.map((participant) => ({
+        userId: participant.userId,
+        messageText: total_fare
           ? `Trip completed! Your share: $${(total_fare / participants.length).toFixed(2)}. Please rate your co-passengers.`
-          : `Trip completed! Please rate your co-passengers.`;
+          : `Trip completed! Please rate your co-passengers.`,
+        rideId: ride_id,
+      }));
 
-        return tx.notification.create({
-          data: {
-            notificationId: uuidv4(),
-            userId: participant.userId,
-            rideId: ride_id,
-            messageText: notificationMessage,
-          },
-        });
-      });
-
-      await Promise.all(notificationPromises);
+      await postNotifications(notificationsList, tx);
 
       return participants;
     });
@@ -464,6 +672,31 @@ const completeRide = async (req, res) => {
     });
   }
 };
+
+/**
+ * @swagger
+ * /api/v1/rides/{ride_id}/start:
+ *   post:
+ *     summary: Start a ride
+ *     tags: [Rides]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: ride_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Ride ID
+ *     responses:
+ *       200:
+ *         description: Ride started successfully
+ *       401:
+ *         description: Authentication required
+ *       500:
+ *         description: Server error
+ */
 
 // @desc    Set ride status to in_progress
 // @route   POST /api/rides/:ride_id/start
@@ -517,19 +750,14 @@ const startRide = async (req, res) => {
         where: { rideId: ride_id },
       });
 
-      // Notify all participants about ride start
-      const notificationPromises = participants.map((participant) =>
-        tx.notification.create({
-          data: {
-            notificationId: uuidv4(),
-            userId: participant.userId,
-            rideId: ride_id,
-            messageText: "Trip is now in progress. Please be ready!",
-          },
-        }),
-      );
+      // Notify all participants about ride start using notification service
+      const notificationsList = participants.map((participant) => ({
+        userId: participant.userId,
+        messageText: "Trip is now in progress. Please be ready!",
+        rideId: ride_id,
+      }));
 
-      await Promise.all(notificationPromises);
+      await postNotifications(notificationsList, tx);
 
       return rideCheck;
     });
@@ -548,6 +776,31 @@ const startRide = async (req, res) => {
     });
   }
 };
+
+/**
+ * @swagger
+ * /api/v1/rides/{ride_id}/cancel:
+ *   patch:
+ *     summary: Cancel a ride
+ *     tags: [Rides]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: ride_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Ride ID
+ *     responses:
+ *       200:
+ *         description: Ride cancelled successfully
+ *       401:
+ *         description: Authentication required
+ *       500:
+ *         description: Server error
+ */
 
 // @desc    Cancel a trip
 // @route   POST /api/rides/:ride_id/cancel
@@ -597,19 +850,14 @@ const cancelRide = async (req, res) => {
         where: { rideId: ride_id },
       });
 
-      // Notify all participants about cancellation
-      const notificationPromises = participants.map((participant) =>
-        tx.notification.create({
-          data: {
-            notificationId: uuidv4(),
-            userId: participant.userId,
-            rideId: ride_id,
-            messageText: "Trip cancelled by the initiator.",
-          },
-        }),
-      );
+      // Notify all participants about cancellation using notification service
+      const notificationsList = participants.map((participant) => ({
+        userId: participant.userId,
+        messageText: "Trip cancelled by the initiator.",
+        rideId: ride_id,
+      }));
 
-      await Promise.all(notificationPromises);
+      await postNotifications(notificationsList, tx);
 
       return rideCheck;
     });

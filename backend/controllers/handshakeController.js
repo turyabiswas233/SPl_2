@@ -1,16 +1,202 @@
-/**
- * Handshake Controller
- * Handles QR code verification and meeting confirmation using Prisma ORM
- */
+const prisma = require("../db/prismaClient");
+const { v4: uuidv4 } = require("uuid");
+const {
+  postNotification,
+  postNotifications,
+} = require("./notificationController");
 
-const prisma = require('../db/prismaClient');
-const { getDistance } = require('geolib');
+// @desc    Join a ride by scanning QR code
+// @route   POST /api/handshake/join-by-qr
+// @access  Private
+const joinByQr = async (req, res) => {
+  const { tripQrCode, userId, met } = req.body;
+
+  try {
+    // Use transaction for atomic operations
+    const result = await prisma.$transaction(async (tx) => {
+      // Find ride by QR code
+      const ride = await tx.ride.findUnique({
+        where: { tripQrCode },
+        include: {
+          participants: true,
+          initiator: {
+            select: {
+              fullName: true,
+            },
+          },
+        },
+      });
+
+      if (!ride) {
+        throw new Error("Invalid QR code. Ride not found.");
+      }
+
+      if (ride.status !== "open") {
+        throw new Error("Ride is not available for joining.");
+      }
+
+      // Check if user is already a participant
+      const existingParticipant = ride.participants.find(
+        (p) => p.userId === userId,
+      );
+
+      if (existingParticipant) {
+        // Check if user exists
+        const user = await tx.user.findUnique({
+          where: { userId },
+        });
+
+        if (!user) {
+          throw new Error("User not found.");
+        }
+
+        // return the info
+        return {
+          ride: {
+            rideId: ride.rideId,
+            destinationName: ride.destinationName,
+            initiatorName: ride.initiator.fullName,
+          },
+          participant: {
+            userId,
+            fullName: user.fullName,
+          },
+          message: "You have already joined this ride.",
+        };
+      }
+
+      // Check if seats are available
+      if (ride.participants.length > ride.maxSeats) {
+        throw new Error("No seats available in this ride.");
+      }
+
+      // Check if user exists
+      const user = await tx.user.findUnique({
+        where: { userId },
+      });
+
+      if (!user) {
+        throw new Error("User not found.");
+      }
+
+      // Create ride participant
+      const rideParticipantId = uuidv4();
+      await tx.rideParticipant.create({
+        data: {
+          rideParticipantId,
+          rideId: ride.rideId,
+          userId,
+          participantId: userId,
+          meetingLat: met?.lat || null,
+          meetingLng: met?.lng || null,
+          hasMetBoolean: false, // Set to false initially, verified later
+        },
+      });
+
+      // Update ride requests: accept the user's request if exists, reject others
+      const allRequests = await tx.rideRequest.findMany({
+        where: {
+          rideId: ride.rideId,
+          status: "pending",
+        },
+      });
+
+      // Accept user's request if exists
+      const userRequest = allRequests.find((r) => r.requesterId === userId);
+      if (userRequest) {
+        await tx.rideRequest.update({
+          where: { requestId: userRequest.requestId },
+          data: { status: "accepted" },
+        });
+      }
+
+      // Reject all other pending requests
+      const otherRequests = allRequests.filter((r) => r.requesterId !== userId);
+      if (otherRequests.length > 0) {
+        await Promise.all(
+          otherRequests.map((request) =>
+            tx.rideRequest.update({
+              where: { requestId: request.requestId },
+              data: { status: "rejected" },
+            }),
+          ),
+        );
+      }
+
+      // Notify the user
+      const userNotificationMessage = `You have successfully joined the ride to ${ride.destinationName} initiated by ${ride.initiator.fullName}.`;
+      await postNotification(userId, userNotificationMessage, ride.rideId, tx);
+
+      // Notify the initiator
+      const initiatorNotificationMessage = `${user.fullName} has joined your ride to ${ride.destinationName} by scanning the QR code.`;
+      await postNotification(
+        ride.initiatorId,
+        initiatorNotificationMessage,
+        ride.rideId,
+        tx,
+      );
+
+      // Notify rejected requesters if any
+      if (otherRequests.length > 0) {
+        const rejectedUserIds = await Promise.all(
+          otherRequests.map(async (request) => {
+            const rejectedUser = await tx.user.findUnique({
+              where: { userId: request.requesterId },
+            });
+            return rejectedUser ? request.requesterId : null;
+          }),
+        );
+
+        const notificationsList = rejectedUserIds
+          .filter((id) => id !== null)
+          .map((rejectedUserId) => ({
+            userId: rejectedUserId,
+            messageText: `Your request to join the ride to ${ride.destinationName} was not accepted as someone else joined via QR code.`,
+            rideId: ride.rideId,
+          }));
+
+        if (notificationsList.length > 0) {
+          await postNotifications(notificationsList, tx);
+        }
+      }
+
+      return {
+        ride: {
+          rideId: ride.rideId,
+          destinationName: ride.destinationName,
+          initiatorName: ride.initiator.fullName,
+        },
+        participant: {
+          userId,
+          fullName: user.fullName,
+        },
+        message: "Successfully joined the ride.",
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      data: {
+        ride: result.ride,
+        participant: result.participant,
+      },
+    });
+  } catch (err) {
+    console.error("Join by QR error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message || "Error joining ride",
+      error: err.message,
+    });
+  }
+};
 
 // @desc    Verify handshake with QR code
 // @route   POST /api/handshake/verify
 // @access  Private
 const verifyHandshake = async (req, res) => {
-  const { ride_id, user_id, scanned_qr_code, current_lat, current_lng } = req.body;
+  const { ride_id, user_id, otp } = req.body;
 
   try {
     // Fetch ride and participant meeting coordinates
@@ -22,7 +208,7 @@ const verifyHandshake = async (req, res) => {
       include: {
         ride: {
           select: {
-            tripQrCode: true,
+            tripOtp: true,
           },
         },
       },
@@ -35,31 +221,15 @@ const verifyHandshake = async (req, res) => {
       });
     }
 
-    // 1. Check QR Code
-    if (rideParticipant.ride.tripQrCode !== scanned_qr_code) {
+    // 1. Check Ride OTP
+    if (rideParticipant.ride.tripOtp !== otp) {
       return res.status(401).json({
         success: false,
-        message: "Invalid QR Code.",
+        message: "Invalid OTP.",
       });
     }
 
-    // 2. Geography Check
-    if (rideParticipant.meetingLat && rideParticipant.meetingLng) {
-      const distance = getDistance(
-        { latitude: current_lat, longitude: current_lng },
-        { latitude: rideParticipant.meetingLat, longitude: rideParticipant.meetingLng }
-      );
-
-      // Distance is in meters. Limit: 100 meters
-      if (distance > 100) {
-        return res.status(400).json({
-          success: false,
-          message: `Too far! You are ${distance}m away.`,
-        });
-      }
-    }
-
-    // 3. Update Status
+    // 2. Update Status
     const result = await prisma.rideParticipant.update({
       where: {
         rideParticipantId: rideParticipant.rideParticipantId,
@@ -86,5 +256,6 @@ const verifyHandshake = async (req, res) => {
 };
 
 module.exports = {
-  verifyHandshake
+  joinByQr,
+  verifyHandshake,
 };
