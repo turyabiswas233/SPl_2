@@ -427,7 +427,7 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
                       context,
                       ride.rideId,
                       ride.initiatorName,
-                      ride.destinationName,
+                      '${ride.startLocation}\nTravelling to: ${ride.destinationName}',
                     ),
                     icon: const Icon(Icons.chat_bubble_outline),
                     label: const Text(

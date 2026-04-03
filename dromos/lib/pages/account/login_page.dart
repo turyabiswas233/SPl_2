@@ -129,10 +129,10 @@ class _LoginScreenState extends State<LoginPage> {
           _navigateToMainScreen();
         } else {
           NotificationController.createNewNotification(
-            "Login Failed",
-            "Invalid Credentials. Please check your internet connection and try again.",
-            "login_failed",
-            "login_failed",
+            id: -1,
+            body: "Invalid Credentials. Please check your internet connection and try again.",
+            title: "Login Failed",
+            payload: "login_failed",
           );
           _showErrorDialog(
             "Login Failed",
@@ -142,10 +142,10 @@ class _LoginScreenState extends State<LoginPage> {
         }
       } else {
         NotificationController.createNewNotification(
-          "Login Failed",
-          "Invalid Credentials. Please check your internet connection and try again.",
-          "login_failed",
-          "login_failed",
+          id: -1,
+          body: "Invalid Credentials. Please check your internet connection and try again.",
+          title: "Login Failed",
+          payload: "login_failed",
         );
         _showErrorDialog(
           "Login Failed",
@@ -156,7 +156,7 @@ class _LoginScreenState extends State<LoginPage> {
     } catch (e) {
       debugPrint('Login error: $e');
       // get my device ip
-      dynamic localIp = InternetAddress.anyIPv4;
+      dynamic localIp = InternetAddress.loopbackIPv4;
 
       if (!mounted) return;
       _showErrorDialog(

@@ -3,6 +3,7 @@ import 'package:dromos/pages/ride/map_page.dart';
 import 'package:dromos/services/ride_service.dart';
 import 'package:dromos/services/user_service.dart';
 import 'package:dromos/utils/colors.dart';
+import 'package:dromos/utils/fonts.dart';
 import 'package:dromos/utils/location.dart';
 import 'package:dromos/widgets/ride_chat_bottom_sheet.dart';
 import 'package:flutter/material.dart';
@@ -30,7 +31,7 @@ class _ActivityPageState extends State<ActivityPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _fetchData();
   }
 
@@ -52,6 +53,8 @@ class _ActivityPageState extends State<ActivityPage>
           _rides = results[0];
           _myRequests = results[1];
         });
+        _rides.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        _myRequests.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
     } catch (e) {
       debugPrint('Error fetching activity data: $e');
@@ -305,7 +308,6 @@ class _ActivityPageState extends State<ActivityPage>
                     tabs: const [
                       Tab(text: 'Active'),
                       Tab(text: 'Requests'),
-                      Tab(text: 'In Progress'),
                       Tab(text: 'History'),
                     ],
                   ),
@@ -319,24 +321,28 @@ class _ActivityPageState extends State<ActivityPage>
                 controller: _tabController,
                 children: [
                   // Active tab
+                  // if (_rides.isNotEmpty && _rides.first.status == 'in_progress')
+                  //   _buildInProgressRide(_inProgressRides)
+                  // else
                   _buildRideList(
                     _activeRides,
                     isActive: true,
                     emptyMsg: 'No active rides',
                   ),
+
                   // Requests tab
                   _buildRideList(
                     _myRequests,
                     isActive: true,
                     emptyMsg: 'No ride requests made',
+                    shortDesc: 'You will see previously made Ride Requests.',
                   ),
-                  // In Progress tab
-                  _buildInProgressRide(_inProgressRides),
                   // History tab
                   _buildRideList(
                     _pastRides,
                     isActive: false,
                     emptyMsg: 'No ride history yet',
+                    shortDesc: 'Your ride history will appear here.',
                   ),
                 ],
               ),
@@ -351,6 +357,7 @@ class _ActivityPageState extends State<ActivityPage>
     List<RideModel> rides, {
     required bool isActive,
     String emptyMsg = 'No rides found',
+    String? shortDesc = 'Your current journey will appear here.',
   }) {
     if (_isLoading) {
       return const Center(
@@ -388,9 +395,7 @@ class _ActivityPageState extends State<ActivityPage>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    isActive
-                        ? 'Your current journey will appear here.\nTap below to find or create a new ride!'
-                        : 'Your completed rides will appear here',
+                    shortDesc!,
                     style: TextStyle(
                       fontSize: 13,
                       color: ConstColor.primaryPurple.withAlpha(200),
@@ -471,9 +476,6 @@ class _ActivityPageState extends State<ActivityPage>
             onCancel: isActive && ride.initiatorId == _userService.userId
                 ? () => _cancelRide(ride.rideId)
                 : null,
-            onRequest: isActive && ride.initiatorId != _userService.userId
-                ? () => _requestRide(ride.rideId)
-                : null,
             onRefresh: _fetchData,
           );
         },
@@ -530,7 +532,23 @@ class _ActivityPageState extends State<ActivityPage>
 
     // Show the latest in progress ride
     final latestRide = rides.last;
-    return _InProgressRideView(ride: latestRide);
+    debugPrint(latestRide.toString());
+    if (latestRide.isEmpty == false) {
+      return _InProgressRideView(ride: latestRide);
+    } else {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.directions_car_outlined,
+              size: 72,
+              color: ConstColor.primaryPurple,
+            ),
+          ],
+        ),
+      );
+    }
   }
 }
 
@@ -541,7 +559,6 @@ class _RideCard extends StatelessWidget {
 
   final VoidCallback? onCancel;
   final VoidCallback? onStart;
-  final VoidCallback? onRequest;
   final VoidCallback onRefresh;
 
   const _RideCard({
@@ -550,7 +567,6 @@ class _RideCard extends StatelessWidget {
     required this.currentUserId,
     this.onStart,
     this.onCancel,
-    this.onRequest,
     required this.onRefresh,
   });
 
@@ -681,13 +697,22 @@ class _RideCard extends StatelessWidget {
             const SizedBox(height: 16),
             if (ride.isOpen)
               GridView(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount:
+                      (ride.initiatorId == currentUserId ||
+                          !_isInitiator && ride.status == 'in_progress'
+                      ? 3
+                      : 2),
                   mainAxisSpacing: 10,
                   crossAxisSpacing: 10,
-                  childAspectRatio: 2.5,
+                  childAspectRatio:
+                      ride.initiatorId == currentUserId ||
+                          !_isInitiator && ride.status == 'in_progress'
+                      ? 2.5
+                      : 4,
                 ),
                 shrinkWrap: true,
+
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
                   ElevatedButton(
@@ -733,15 +758,74 @@ class _RideCard extends StatelessWidget {
                     ),
                   ),
                   if (_isInitiator)
+                    if (ride.status == ('open'))
+                      ElevatedButton(
+                        onPressed: ride.curPassengers > 0 ? onStart : onCancel,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ride.curPassengers > 0
+                              ? Colors.green.shade100
+                              : Colors.red.shade100,
+                          foregroundColor: ride.curPassengers > 0
+                              ? ConstColor.success
+                              : ConstColor.error,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: Text(
+                          ride.curPassengers > 0 ? 'Start' : 'Cancel',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      )
+                    else
+                      ElevatedButton(
+                        onPressed: () {
+                          // navigate to map view page
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  _InProgressRideView(ride: ride),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red.shade100,
+                          foregroundColor: ConstColor.error,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: Text(
+                          'Live',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  if (!_isInitiator && ride.status == 'in_progress')
                     ElevatedButton(
-                      onPressed: ride.curPassengers > 0 ? onStart : onCancel,
+                      onPressed: () {
+                        // navigate to map view page
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                _InProgressRideView(ride: ride),
+                          ),
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: ride.curPassengers > 0
-                            ? Colors.green.shade100
-                            : Colors.red.shade100,
-                        foregroundColor: ride.curPassengers > 0
-                            ? ConstColor.success
-                            : ConstColor.error,
+                        backgroundColor: Colors.red.shade100,
+                        foregroundColor: ConstColor.error,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -749,27 +833,7 @@ class _RideCard extends StatelessWidget {
                         padding: EdgeInsets.zero,
                       ),
                       child: Text(
-                        ride.curPassengers > 0 ? 'Start' : 'Cancel',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    )
-                  else
-                    ElevatedButton(
-                      onPressed: onRequest,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange.shade50,
-                        foregroundColor: Colors.orange,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: EdgeInsets.zero,
-                      ),
-                      child: const Text(
-                        'Request',
+                        'Live',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
@@ -1158,7 +1222,6 @@ class _InProgressRideView extends StatefulWidget {
 
 class _InProgressRideViewState extends State<_InProgressRideView> {
   late DraggableScrollableController _scrollController;
-  final _userService = UserService();
 
   @override
   void initState() {
@@ -1171,8 +1234,6 @@ class _InProgressRideViewState extends State<_InProgressRideView> {
     _scrollController.dispose();
     super.dispose();
   }
-
-  bool get _isInitiator => widget.ride.initiatorId == _userService.userId;
 
   @override
   Widget build(BuildContext context) {
@@ -1202,7 +1263,7 @@ class _InProgressRideViewState extends State<_InProgressRideView> {
             child: SingleChildScrollView(
               controller: scrollController,
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1232,13 +1293,13 @@ class _InProgressRideViewState extends State<_InProgressRideView> {
                             ),
                             Container(
                               width: 2,
-                              height: 20,
+                              height: 32,
                               color: ConstColor.primaryPurple.withAlpha(80),
                             ),
                             const Icon(
                               Icons.location_pin,
                               size: 12,
-                              color: ConstColor.error,
+                              color: ConstColor.success,
                             ),
                           ],
                         ),
@@ -1278,7 +1339,7 @@ class _InProgressRideViewState extends State<_InProgressRideView> {
 
                     // Ride details grid
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         _buildMetaItem(
                           icon: Icons.people,
@@ -1286,72 +1347,11 @@ class _InProgressRideViewState extends State<_InProgressRideView> {
                           value: '${widget.ride.maxSeats}',
                         ),
                         _buildMetaItem(
-                          icon: Icons.lock_clock,
-                          label: 'OTP',
-                          value: widget.ride.tripOtp,
-                        ),
-                        _buildMetaItem(
                           icon: Icons.info_outline,
                           label: 'Status',
-                          value: widget.ride.status.toUpperCase(),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Action buttons
-                    Column(
-                      children: [
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  _showChatBottomSheet(
-                                    context,
-                                    widget.ride.rideId,
-                                    widget.ride.initiatorName,
-                                  );
-                                },
-                                icon: const Icon(Icons.chat_bubble_outline),
-                                label: const Text('Chat'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  // Contact logic
-                                },
-                                icon: const Icon(Icons.call),
-                                label: Text(
-                                  _isInitiator ? 'Contact' : 'Contact Host',
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.orange,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                          value: widget.ride.status == 'in_progress'
+                              ? 'Going on'
+                              : 'Completed',
                         ),
                       ],
                     ),
@@ -1370,45 +1370,28 @@ class _InProgressRideViewState extends State<_InProgressRideView> {
     required String label,
     required String value,
   }) {
-    return Column(
-      children: [
-        Icon(icon, color: ConstColor.primaryPurple, size: 24),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: Colors.grey,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  void _showChatBottomSheet(
-    BuildContext context,
-    String rideId,
-    String rideName,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    return Container(
+      padding: .all(20),
+      decoration: BoxDecoration(
+        color: ConstColor.primaryPurple25.withAlpha(100),
+        borderRadius: BorderRadius.circular(20),
       ),
-      builder: (context) =>
-          RideChatBottomSheet(rideId: rideId, rideName: rideName),
+      child: Column(
+        children: [
+          Icon(icon, color: ConstColor.primaryPurple, size: 24),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: ConstFonts.normal(size: 11, color: Colors.black87),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: ConstFonts.semibold(size: 14, color: Colors.black87),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

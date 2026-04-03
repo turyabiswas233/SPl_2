@@ -70,15 +70,15 @@ class NotificationHandler {
 
           // Check for new unread notifications and show local notification
           for (final n in fetched) {
-            final alreadyExists = _notifications.any(
+            final alreadyExists = _instance._notifications.any(
               (e) => e.notificationId == n.notificationId,
             );
             if (!alreadyExists && !n.isRead) {
               NotificationController.createNewNotification(
-                'Dromos',
-                n.message,
-                n.notificationId,
-                n.notificationId,
+                id: n.notificationId.hashCode,
+                title: 'Dromos',
+                body: n.message,
+                payload: n.notificationId,
               );
             }
           }
@@ -94,6 +94,32 @@ class NotificationHandler {
     }
 
     return _notifications;
+  }
+
+  Future<void> markAsRead(String notificationId) async {
+    if (_userService.token.isEmpty) return;
+    try {
+      final response = await http.put(
+        Uri.parse('${Api.url}/notifications/$notificationId/read'),
+        headers: _authHeaders,
+      );
+      debugPrint('markAsRead status: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        if (body['success'] == true) {
+          final index = _notifications.indexWhere(
+            (n) => n.notificationId == notificationId,
+          );
+          if (index != -1) {
+            _notifications[index].isRead = true;
+            _controller.add(_notifications);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('NotificationHandler.markAsRead error: $e');
+      rethrow;
+    }
   }
 
   /// Clear all cached notifications locally.

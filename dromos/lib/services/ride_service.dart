@@ -11,15 +11,18 @@ import 'package:http/http.dart' as http;
 /// Singleton service for ride-related API operations.
 class RideService {
   static final RideService _instance = RideService._internal();
+
   factory RideService() => _instance;
+
   RideService._internal();
 
   final _userService = UserService();
 
-  Map<String, String> get _authHeaders => {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer ${_userService.token}',
-  };
+  Map<String, String> get _authHeaders =>
+      {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${_userService.token}',
+      };
 
   /// Create a new ride session.
   /// Returns [RideModel] on success, throws on failure.
@@ -147,6 +150,7 @@ class RideService {
       }
     } catch (e) {
       debugPrint('RideService.fetchNearbyRides error: $e');
+      rethrow;
     }
     return [];
   }
@@ -167,6 +171,7 @@ class RideService {
       }
     } catch (e) {
       debugPrint('RideService.fetchRide error: $e');
+      rethrow;
     }
     return null;
   }
@@ -183,8 +188,8 @@ class RideService {
       return body;
     } catch (e) {
       debugPrint('RideService.cancelRide error: $e');
+      rethrow ;
     }
-    return null;
   }
 
   /// Start a ride by ID.
@@ -196,6 +201,7 @@ class RideService {
       );
 
       final body = jsonDecode(response.body);
+      debugPrint('RideService.startRide body: $body');
       return body;
     } catch (e) {
       debugPrint('RideService.startRide error: $e');
@@ -215,8 +221,8 @@ class RideService {
       return body;
     } catch (e) {
       debugPrint('RideService.requestRide error: $e');
+      rethrow;
     }
-    return null;
   }
 
   /// Get route information from MapBox.
@@ -229,7 +235,8 @@ class RideService {
     try {
       final response = await http.get(
         Uri.parse(
-          '${Api.url}/mapbox/route?startLng=$startLng&startLat=$startLat&destLng=$destLng&destLat=$destLat',
+          '${Api
+              .url}/mapbox/route?startLng=$startLng&startLat=$startLat&destLng=$destLng&destLat=$destLat',
         ),
         headers: _authHeaders,
       );
@@ -240,6 +247,7 @@ class RideService {
       }
     } catch (e) {
       debugPrint('RideService.getRoute error: $e');
+      rethrow;
     }
     return null;
   }
@@ -301,12 +309,12 @@ class RideService {
       }
       else {
         final body = jsonDecode(response.body);
-        throw (
-          body['message'] ?? 'Server error: ${response.statusCode}',
+        throw Exception(
+        body['message'] ?? 'Server error: ${response.statusCode}',
         );
       }
     } catch (e) {
-      throw e.toString();
+      rethrow;
     }
     return null;
   }

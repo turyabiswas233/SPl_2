@@ -87,6 +87,9 @@ class _CreateRidePageState extends State<CreateRidePage> {
           const SnackBar(content: Text('Could not detect your location')),
         );
       }
+      setState(() {
+        _useMyLocation = false;
+      });
     } finally {
       if (mounted) setState(() => _isLoadingMyLocation = false);
     }
@@ -101,11 +104,39 @@ class _CreateRidePageState extends State<CreateRidePage> {
       ),
     );
     if (result != null) {
-      if (!mounted) return;
       setState(() {
         _startPlace = result;
         _useMyLocation = false;
       });
+    } else {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            clipBehavior: Clip.antiAlias,
+            shadowColor: Colors.black45,
+            content: const Text("Wrong Place Location"),
+            actions: [
+              TextButton(
+                style: ButtonStyle(
+                  backgroundColor: WidgetStateProperty.all(
+                    ConstColor.primaryColor,
+                  ),
+                  overlayColor: WidgetStateProperty.all(
+                    ConstColor.primaryColor,
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                },
+                child: const Text("OK"),
+              ),
+            ],
+          );
+        },
+      );
     }
   }
 
@@ -507,17 +538,11 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                               ],
                                             ),
                                           ),
-                                          Radio<bool>(
-                                            value: true,
-                                            groupValue: _useMyLocation,
-                                            activeColor:
-                                                ConstColor.primaryPurple,
-                                            onChanged: (v) {
-                                              setState(
-                                                () => _useMyLocation = true,
-                                              );
-                                              _fetchMyLocation();
-                                            },
+                                          Icon(
+                                            _useMyLocation
+                                                ? Icons.check_circle_rounded
+                                                : Icons.check_circle_outline,
+                                            color: _useMyLocation ? ConstColor.primaryPurple : ConstColor.primaryPurple25,
                                           ),
                                         ],
                                       ),
@@ -597,13 +622,11 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                               ],
                                             ),
                                           ),
-                                          Radio<bool>(
-                                            value: false,
-                                            groupValue: _useMyLocation,
-                                            activeColor:
-                                                ConstColor.primaryPurple,
-                                            onChanged: (v) =>
-                                                _openStartSearch(),
+                                          Icon(
+                                            !_useMyLocation
+                                                ? Icons.check_circle_rounded
+                                                : Icons.check_circle_outline,
+                                            color: !_useMyLocation ? ConstColor.primaryPurple : ConstColor.primaryPurple25,
                                           ),
                                         ],
                                       ),
@@ -676,14 +699,14 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                       height: 40,
                                       decoration: BoxDecoration(
                                         color: _destPlace != null
-                                            ? Colors.red.withAlpha(20)
+                                            ? ConstColor.success.withAlpha(20)
                                             : Colors.grey.shade100,
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Icon(
                                         Icons.flag_outlined,
                                         color: _destPlace != null
-                                            ? Colors.red
+                                            ? ConstColor.success
                                             : Colors.grey,
                                         size: 20,
                                       ),
@@ -806,7 +829,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                             size: 20,
                                           ),
                                           const SizedBox(width: 12),
-                                          const Text('Other'),
+                                          const Text('Both'),
                                         ],
                                       ),
                                     ),
@@ -864,7 +887,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                         'Passengers',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
-                                          fontSize: 12
+                                          fontSize: 12,
                                         ),
                                       ),
                                     ],

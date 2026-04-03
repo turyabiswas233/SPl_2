@@ -32,7 +32,7 @@ class ConstFonts {
     return GoogleFonts.poppins(
       color: color,
       fontSize: size ?? ConstFonts.defaultFontSize,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w600,
     );
   }
 
@@ -40,7 +40,7 @@ class ConstFonts {
     return GoogleFonts.poppins(
       color: color,
       fontSize: size ?? ConstFonts.defaultFontSize,
-      fontWeight: FontWeight.w900,
+      fontWeight: FontWeight.w800,
     );
   }
 }
