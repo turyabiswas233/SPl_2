@@ -236,7 +236,7 @@ class RideService {
       final response = await http.get(
         Uri.parse(
           '${Api
-              .url}/mapbox/route?startLng=$startLng&startLat=$startLat&destLng=$destLng&destLat=$destLat',
+              .url}/mapbox/route?startLng=$startLng&startLat=$startLat&destLng=$destLng&destLat=$destLat&steps=false',
         ),
         headers: _authHeaders,
       );

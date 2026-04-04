@@ -1,4 +1,5 @@
 import 'package:dromos/utils/colors.dart';
+import 'package:dromos/utils/fonts.dart';
 import 'package:flutter/material.dart';
 
 class WaitingOverlay extends StatelessWidget {
@@ -24,9 +25,8 @@ class WaitingOverlay extends StatelessWidget {
             const SizedBox(height: 24),
             Text(
               'Please wait...',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+              style: ConstFonts.semibold(
+                size: 24,
                 color: Colors.grey.shade600,
               ),
             ),
@@ -34,7 +34,10 @@ class WaitingOverlay extends StatelessWidget {
             if (captionText != null)
               Text(
                 captionText!,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                style: ConstFonts.semibold(
+                  size: 14,
+                  color: Colors.grey.shade400,
+                ),
               ),
           ],
         ),

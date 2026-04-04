@@ -2,6 +2,7 @@ import 'package:dromos/pages/home/notifications_page.dart';
 import 'package:dromos/screens/waiting_screen.dart';
 import 'package:dromos/services/notification_handler.dart';
 import 'package:dromos/services/user_service.dart';
+import 'package:dromos/utils/fonts.dart';
 import 'package:dromos/utils/location.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/utils/colors.dart';
@@ -202,10 +203,9 @@ class _HomePageState extends State<HomePage> {
                                       ), // Align slightly with the button curve
                                       child: Text(
                                         user.fullName,
-                                        style: const TextStyle(
+                                        style: ConstFonts.semibold(
                                           color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 18,
+                                          size: 18,
                                         ),
                                       ),
                                     ),
@@ -264,11 +264,10 @@ class _HomePageState extends State<HomePage> {
 
                         const SizedBox(height: 30),
 
-                        const Text(
+                        Text(
                           "Locate your\nchosen vehicle.",
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
+                          style: ConstFonts.bold(
+                            size: 28,
                             color: Colors.white,
                           ),
                         ),

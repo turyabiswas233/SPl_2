@@ -91,12 +91,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
             success
                 ? 'Profile updated successfully!'
                 : 'Failed to update profile.',
+            style: ConstFonts.semibold(
+              size: 12,
+              color: success ? Colors.green : Colors.red,
+            ),
           ),
-          backgroundColor: success ? Colors.green : Colors.redAccent,
+          backgroundColor: success ? Colors.green.shade50 : Colors.red.shade50,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
+          duration: const Duration(seconds: 2),
         ),
       );
       if (success) Navigator.of(context).pop();
@@ -467,7 +472,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
-      style: const TextStyle(fontSize: 15, color: fColor),
+      style: ConstFonts.normal(size: 14, color: fColor),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(color: fColor.withAlpha(140)),
@@ -522,19 +527,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade500,
+                  style: ConstFonts.semibold(
+                    size: 12,
+                    color: fColor.withAlpha(100),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value.isNotEmpty ? value : '—',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: fColor.withAlpha(180),
-                    fontWeight: FontWeight.w500,
+                  style: ConstFonts.semibold(
+                    size: 14,
+                    color: fColor.withAlpha(100),
                   ),
                 ),
               ],

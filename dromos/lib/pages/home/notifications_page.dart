@@ -1,6 +1,7 @@
 import 'package:dromos/models/notification_model.dart';
 import 'package:dromos/services/notification_handler.dart';
 import 'package:dromos/utils/colors.dart';
+import 'package:dromos/utils/fonts.dart';
 import 'package:flutter/material.dart';
 
 class NotificationsPage extends StatefulWidget {
@@ -144,10 +145,9 @@ class _NotificationTile extends StatelessWidget {
         ),
         title: Text(
           notification.message,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: notification.isRead ? FontWeight.w400 : FontWeight.w600,
-          ),
+          style: !notification.isRead
+              ? ConstFonts.bold(size: 14)
+              : ConstFonts.normal(size: 14, color: Colors.grey.shade600),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
