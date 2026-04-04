@@ -3,6 +3,7 @@ import 'package:dromos/pages/ride/place_search_page.dart';
 import 'package:dromos/screens/waiting_screen.dart';
 import 'package:dromos/services/ride_service.dart';
 import 'package:dromos/utils/colors.dart';
+import 'package:dromos/utils/fonts.dart';
 import 'package:dromos/utils/location.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -122,11 +123,12 @@ class _CreateRidePageState extends State<CreateRidePage> {
               TextButton(
                 style: ButtonStyle(
                   backgroundColor: WidgetStateProperty.all(
-                    ConstColor.primaryColor,
+                    ConstColor.error.withAlpha(100),
                   ),
                   overlayColor: WidgetStateProperty.all(
-                    ConstColor.primaryColor,
+                    ConstColor.primaryColor.withAlpha(20),
                   ),
+                  foregroundColor: WidgetStateProperty.all(ConstColor.error),
                 ),
                 onPressed: () {
                   Navigator.pop(ctx);
@@ -505,11 +507,17 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                const Text(
+                                                Text(
                                                   'My Location',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w600,
-                                                    fontSize: 12,
+                                                  style: ConstFonts.semibold(
+                                                    size: 12,
+                                                    color: ConstColor
+                                                        .primaryColor
+                                                        .withAlpha(
+                                                          _useMyLocation
+                                                              ? 255
+                                                              : 100,
+                                                        ),
                                                   ),
                                                 ),
                                                 if (_useMyLocation &&
@@ -542,7 +550,9 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                             _useMyLocation
                                                 ? Icons.check_circle_rounded
                                                 : Icons.check_circle_outline,
-                                            color: _useMyLocation ? ConstColor.primaryPurple : ConstColor.primaryPurple25,
+                                            color: _useMyLocation
+                                                ? ConstColor.primaryPurple
+                                                : ConstColor.primaryPurple25,
                                           ),
                                         ],
                                       ),
@@ -590,11 +600,17 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                const Text(
+                                                Text(
                                                   'Search Location',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w600,
-                                                    fontSize: 12,
+                                                  style: ConstFonts.semibold(
+                                                    color: ConstColor
+                                                        .primaryColor
+                                                        .withAlpha(
+                                                          !_useMyLocation
+                                                              ? 255
+                                                              : 100,
+                                                        ),
+                                                    size: 12,
                                                   ),
                                                 ),
                                                 if (!_useMyLocation &&
@@ -626,7 +642,9 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                             !_useMyLocation
                                                 ? Icons.check_circle_rounded
                                                 : Icons.check_circle_outline,
-                                            color: !_useMyLocation ? ConstColor.primaryPurple : ConstColor.primaryPurple25,
+                                            color: !_useMyLocation
+                                                ? ConstColor.primaryPurple
+                                                : ConstColor.primaryPurple25,
                                           ),
                                         ],
                                       ),
@@ -785,9 +803,9 @@ class _CreateRidePageState extends State<CreateRidePage> {
                                 child: DropdownButton<String>(
                                   value: _preferredGender,
                                   dropdownColor: Colors.white,
-                                  style: TextStyle(
-                                    fontSize: 12,
+                                  style: ConstFonts.semibold(
                                     color: ConstColor.primaryColor,
+                                    size: 12,
                                   ),
                                   isExpanded: true,
                                   items: [

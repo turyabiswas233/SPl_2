@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dromos/utils/api.dart';
+import 'package:dromos/utils/fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:dromos/utils/colors.dart';
@@ -360,11 +361,11 @@ class _PlaceSearchPageState extends State<PlaceSearchPage> {
               controller: _searchController,
               autofocus: true,
               onChanged: _onSearchChanged,
-              style: const TextStyle(color: Colors.white),
+              style: ConstFonts.semibold(color: Colors.white, size: 14),
               cursorColor: Colors.white,
               decoration: InputDecoration(
                 hintText: widget.hintText,
-                hintStyle: TextStyle(color: Colors.white.withAlpha(150)),
+                hintStyle: ConstFonts.semibold(color: Colors.white.withAlpha(150), size: 14),
                 prefixIcon: const Icon(Icons.search, color: Colors.white70),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(

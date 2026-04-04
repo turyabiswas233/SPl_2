@@ -2,6 +2,7 @@ import 'package:dromos/pages/home/default_page.dart';
 import 'package:dromos/pages/profile/editprofile_page.dart';
 import 'package:dromos/services/app_version.dart';
 import 'package:dromos/services/user_service.dart';
+import 'package:dromos/utils/fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/utils/colors.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -203,7 +204,7 @@ class _AccountPageState extends State<AccountPage> {
     final tileColor = color ?? ConstColor.primaryPurple;
     return ListTile(
       leading: Icon(icon, color: tileColor, size: 20),
-      title: Text(title, style: TextStyle(fontSize: 14, color: color)),
+      title: Text(title, style: ConstFonts.light(size: 14, color: color)),
       trailing: dense ? const Icon(Icons.arrow_forward_ios, size: 12) : null,
       style: ListTileStyle.list,
       onTap: onTap,

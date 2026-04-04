@@ -2,6 +2,7 @@ import 'package:dromos/pages/home_page.dart';
 import 'package:dromos/pages/ride/create_ride_page.dart';
 import 'package:dromos/pages/ride/nearby_rides_page.dart';
 import 'package:dromos/pages/activity/activity_page.dart';
+import 'package:dromos/utils/fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:salomon_bottom_bar/salomon_bottom_bar.dart';
 import 'package:dromos/pages/profile/account_page.dart';
@@ -56,27 +57,52 @@ class _MainScreenState extends State<MainScreen> {
                 items: [
                   SalomonBottomBarItem(
                     icon: const Icon(Icons.home_outlined),
-                    title: const Text("Home"),
+                    title: Text(
+                      "Home",
+                      style: ConstFonts.semibold(
+                        color: ConstColor.primaryPurple,
+                      ),
+                    ),
                     selectedColor: ConstColor.primaryPurple,
                   ),
                   SalomonBottomBarItem(
                     icon: const Icon(Icons.add_circle_outline),
-                    title: const Text("Create"),
+                    title: Text(
+                      "Create",
+                      style: ConstFonts.semibold(
+                        color: ConstColor.primaryPurple,
+                      ),
+                    ),
                     selectedColor: ConstColor.primaryPurple,
                   ),
                   SalomonBottomBarItem(
                     icon: const Icon(Icons.directions_car_outlined),
-                    title: const Text("Browse"),
+                    title: Text(
+                      "Browse",
+                      style: ConstFonts.semibold(
+                        color: ConstColor.primaryPurple,
+                      ),
+                    ),
                     selectedColor: ConstColor.primaryPurple,
                   ),
                   SalomonBottomBarItem(
                     icon: const Icon(Icons.local_activity_outlined),
-                    title: const Text("Activity"),
+                    title: Text(
+                      "Activity",
+                      style: ConstFonts.semibold(
+                        color: ConstColor.primaryPurple,
+                      ),
+                    ),
                     selectedColor: ConstColor.primaryPurple,
                   ),
                   SalomonBottomBarItem(
                     icon: const Icon(Icons.settings_rounded),
-                    title: const Text("Settings"),
+                    title: Text(
+                      "Settings",
+                      style: ConstFonts.semibold(
+                        color: ConstColor.primaryPurple,
+                      ),
+                    ),
                     selectedColor: ConstColor.primaryPurple,
                   ),
                 ],

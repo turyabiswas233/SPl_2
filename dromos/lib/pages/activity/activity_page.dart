@@ -53,7 +53,19 @@ class _ActivityPageState extends State<ActivityPage>
           _rides = results[0];
           _myRequests = results[1];
         });
-        _rides.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        _rides.sort((a, b) {
+          // Step 1: give priority to status
+          int statusOrder(String s) {
+            if (s == 'in progress') return 2;
+            if (s == 'open') return 1;
+            return 0; // others lowest
+          }
+
+          int cmp = statusOrder(b.status).compareTo(statusOrder(a.status));
+          if (cmp != 0) return cmp;
+          // Step 2: if same priority, sort by createdAt desc
+          return b.createdAt.compareTo(a.createdAt);
+        });
         _myRequests.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
     } catch (e) {
@@ -137,9 +149,13 @@ class _ActivityPageState extends State<ActivityPage>
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Ride cancelled successfully'),
             backgroundColor: ConstColor.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             duration: Duration(seconds: 2),
           ),
         );
@@ -148,6 +164,10 @@ class _ActivityPageState extends State<ActivityPage>
           SnackBar(
             content: Text(result?['message'] ?? 'Failed to cancel ride'),
             backgroundColor: Colors.red.shade100,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -162,83 +182,16 @@ class _ActivityPageState extends State<ActivityPage>
           content: Text('Error: $e'),
           backgroundColor: Colors.red.shade100,
           duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  Future<void> _requestRide(String rideId) async {
-    // Show loading indicator
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Dialog(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(ConstColor.primaryPurple),
-                ),
-              ),
-              SizedBox(width: 16),
-              Text('Requesting ride...'),
-            ],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
           ),
-        ),
-      ),
-    );
-
-    try {
-      final result = await _rideService.requestRide(rideId);
-
-      if (!mounted) return;
-      Navigator.pop(context); // Close loading dialog
-
-      if (result != null && result['success'] == true) {
-        await _fetchData();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Ride request sent successfully'),
-            backgroundColor: ConstColor.success,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result?['message'] ?? 'Failed to request ride'),
-            backgroundColor: ConstColor.error.withAlpha(150),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.pop(context); // Close loading dialog
-
-      debugPrint('Error requesting ride: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red.shade100,
-          duration: const Duration(seconds: 2),
         ),
       );
     }
   }
 
   List<RideModel> get _activeRides => _rides.where((r) => r.isOpen).toList();
-
-  List<RideModel> get _inProgressRides =>
-      _rides.where((r) => r.status.toLowerCase() == 'in_progress').toList();
 
   List<RideModel> get _pastRides => _rides
       .where(
@@ -320,10 +273,6 @@ class _ActivityPageState extends State<ActivityPage>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  // Active tab
-                  // if (_rides.isNotEmpty && _rides.first.status == 'in_progress')
-                  //   _buildInProgressRide(_inProgressRides)
-                  // else
                   _buildRideList(
                     _activeRides,
                     isActive: true,
@@ -364,8 +313,6 @@ class _ActivityPageState extends State<ActivityPage>
         child: CircularProgressIndicator(color: ConstColor.primaryPurple),
       );
     }
-
-    rides.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     if (rides.isEmpty) {
       return RefreshIndicator(
@@ -443,9 +390,13 @@ class _ActivityPageState extends State<ActivityPage>
 
                       if (result['success'] == true) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
+                          SnackBar(
                             content: Text('Ride started successfully!'),
                             backgroundColor: ConstColor.success,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         );
                       } else {
@@ -455,6 +406,10 @@ class _ActivityPageState extends State<ActivityPage>
                               result['message'] ?? 'Failed to start ride',
                             ),
                             backgroundColor: Colors.red.shade200,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         );
                       }
@@ -468,6 +423,10 @@ class _ActivityPageState extends State<ActivityPage>
                             style: TextStyle(color: Colors.red),
                           ),
                           backgroundColor: Colors.red.shade100,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                       );
                     }
@@ -481,74 +440,6 @@ class _ActivityPageState extends State<ActivityPage>
         },
       ),
     );
-  }
-
-  Widget _buildInProgressRide(List<RideModel> rides) {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: ConstColor.primaryPurple),
-      );
-    }
-
-    if (rides.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: _fetchData,
-        child: ListView(
-          children: [
-            SizedBox(height: MediaQuery.of(context).size.height * 0.15),
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.directions_car_outlined,
-                    size: 72,
-                    color: ConstColor.primaryPurple,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No rides in progress',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: ConstColor.primaryColor.withAlpha(150),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Your active rides will appear here',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: ConstColor.primaryPurple.withAlpha(200),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Show the latest in progress ride
-    final latestRide = rides.last;
-    debugPrint(latestRide.toString());
-    if (latestRide.isEmpty == false) {
-      return _InProgressRideView(ride: latestRide);
-    } else {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.directions_car_outlined,
-              size: 72,
-              color: ConstColor.primaryPurple,
-            ),
-          ],
-        ),
-      );
-    }
   }
 }
 
@@ -653,20 +544,14 @@ class _RideCard extends StatelessWidget {
                   children: [
                     Text(
                       ride.startLocation,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
+                      style: ConstFonts.semibold(size: 14),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 16),
                     Text(
                       ride.destinationName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
+                      style: ConstFonts.semibold(size: 14),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1062,6 +947,10 @@ class _RideCard extends StatelessWidget {
           SnackBar(
             content: Text(result['message'] ?? 'Failed to join ride'),
             backgroundColor: Colors.red.shade100,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }
@@ -1069,7 +958,14 @@ class _RideCard extends StatelessWidget {
       if (!context.mounted) return;
       Navigator.pop(context); // Close loading
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: ConstColor.error),
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: ConstColor.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
     }
   }
@@ -1164,9 +1060,13 @@ class _RideCard extends StatelessWidget {
       if (result['success'] == true) {
         Navigator.pop(context); // Close OTP dialog
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Ride verified successfully!'),
             backgroundColor: ConstColor.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
         onRefresh(); // Refresh activity to show in progress
@@ -1175,6 +1075,10 @@ class _RideCard extends StatelessWidget {
           SnackBar(
             content: Text(result['message'] ?? 'Invalid OTP'),
             backgroundColor: Colors.red.shade100,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }
@@ -1185,6 +1089,10 @@ class _RideCard extends StatelessWidget {
         SnackBar(
           content: Text('Error: $e'),
           backgroundColor: Colors.red.shade100,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     }
@@ -1194,9 +1102,15 @@ class _RideCard extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: Colors.grey.shade500),
+        Icon(icon, size: 14, color: ConstColor.primaryPurple),
         const SizedBox(width: 4),
-        Text(text, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        Text(
+          text,
+          style: ConstFonts.light(
+            size: 12,
+            color: ConstColor.primaryPurple.withAlpha(150),
+          ),
+        ),
       ],
     );
   }
@@ -1245,18 +1159,18 @@ class _InProgressRideViewState extends State<_InProgressRideView> {
         // Draggable bottom sheet with ride info
         DraggableScrollableSheet(
           controller: _scrollController,
-          initialChildSize: 0.3,
-          minChildSize: 0.2,
-          maxChildSize: 0.6,
+          initialChildSize: 0.2,
+          minChildSize: 0.1,
+          maxChildSize: 0.7,
           builder: (context, scrollController) => Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: ConstColor.primaryBg,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 10,
-                  spreadRadius: 2,
+                  color: ConstColor.primaryPurple,
+                  blurRadius: 40,
+                  spreadRadius: 10,
                 ),
               ],
             ),
@@ -1273,7 +1187,7 @@ class _InProgressRideViewState extends State<_InProgressRideView> {
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
+                          color: ConstColor.primaryPurple.withAlpha(200),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -1294,7 +1208,7 @@ class _InProgressRideViewState extends State<_InProgressRideView> {
                             Container(
                               width: 2,
                               height: 32,
-                              color: ConstColor.primaryPurple.withAlpha(80),
+                              color: ConstColor.primaryPurple25,
                             ),
                             const Icon(
                               Icons.location_pin,
@@ -1309,10 +1223,10 @@ class _InProgressRideViewState extends State<_InProgressRideView> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                widget.ride.startLocation,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
+                                widget.ride.startLocation ,
+                                style: ConstFonts.semibold(
+                                  color: ConstColor.primaryColor,
+                                  size: 14,
                                 ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -1320,9 +1234,9 @@ class _InProgressRideViewState extends State<_InProgressRideView> {
                               const SizedBox(height: 20),
                               Text(
                                 widget.ride.destinationName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
+                                style: ConstFonts.semibold(
+                                  color: ConstColor.primaryColor,
+                                  size: 14,
                                 ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -1382,12 +1296,18 @@ class _InProgressRideViewState extends State<_InProgressRideView> {
           const SizedBox(height: 6),
           Text(
             label,
-            style: ConstFonts.normal(size: 11, color: Colors.black87),
+            style: ConstFonts.semibold(
+              color: ConstColor.primaryColor,
+              size: 11,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: ConstFonts.semibold(size: 14, color: Colors.black87),
+            style: ConstFonts.semibold(
+              color: ConstColor.primaryColor,
+              size: 14,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
