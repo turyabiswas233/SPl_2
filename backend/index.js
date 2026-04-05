@@ -17,6 +17,7 @@ const apiRoutes = require("./routes/index");
 // Initialize Express app
 const app = express();
 const { Server } = require("socket.io");
+const connectMongoDB = require("./db/mongoose");
 const server = require("http").createServer(app);
 const io = new Server(server, {
   cors: {
@@ -84,7 +85,6 @@ app.use((req, res) => {
 // Error Handler (must be last)
 app.use(errorHandler);
 
-
 // Server Configuration
 const PORT = process.env.PORT || 3000;
 
@@ -93,7 +93,7 @@ const startServer = async () => {
   try {
     // Initialize Prisma Database Connection
     await initDB();
-    console.log("✅ Prisma: Database connected");
+    await connectMongoDB();
 
     // Start Express Server
     server.listen(PORT, () => {

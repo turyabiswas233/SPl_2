@@ -40,8 +40,7 @@ const getLocationsBySearch = async (req, res) => {
 
 const getRoute = async (req, res) => {
   try {
-    const { startLng, startLat, destLng, destLat, steps, geometries } =
-      req.query;
+    const { startLng, startLat, destLng, destLat, steps } = req.query;
     console.log(req.query);
     if (!startLng || !startLat || !destLng || !destLat) {
       return res.status(400).json({
@@ -57,15 +56,32 @@ const getRoute = async (req, res) => {
           { coordinates: [parseFloat(startLng), parseFloat(startLat)] },
           { coordinates: [parseFloat(destLng), parseFloat(destLat)] },
         ],
-        geometries: geometries ? geometries : 'geojson',
+        geometries: "geojson",
         language: "en",
         overview: "full",
-        steps: steps == "true" ? true : false,
+        steps: String(steps).toString() == "true" ? true : false,
       })
       .send();
 
     if (response.statusCode === 200) {
-      res.json(response.body);
+      const routeCoordinates =
+        response.body?.routes[0]?.geometry?.coordinates?.map((coord) => {
+          return {
+            longitude: coord[0],
+            latitude: coord[1],
+          };
+        });
+      console.log(
+        "Route data:",
+        response.body?.routes[0]?.distance,
+        response.body?.routes[0]?.duration,
+        routeCoordinates.length,
+      );
+      res.status(200).json({
+        distance: response.body?.routes[0]?.distance,
+        duration: response.body?.routes[0]?.duration,
+        coordinates: routeCoordinates,
+      });
     } else {
       res.status(response.statusCode).json({ error: response.body.message });
     }

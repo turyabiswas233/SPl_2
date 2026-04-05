@@ -536,9 +536,10 @@ const getNearbyRides = async (req, res) => {
             method: "GET",
           },
         ).then((res) => res.json());
+        
         return {
           ...ride,
-          travelDistance: body?.routes[0]?.distance, // Distance in meters
+          travelDistance: body?.distance, // Distance in meters
         };
       }),
     );

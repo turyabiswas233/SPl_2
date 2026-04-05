@@ -79,6 +79,7 @@ const getMessages = async (req, res) => {
           select: {
             fullName: true,
             userId: true,
+            phoneNumber: true
           },
         },
       },
