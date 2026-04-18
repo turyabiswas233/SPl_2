@@ -6,6 +6,7 @@ import 'package:dromos/utils/fonts.dart';
 import 'package:dromos/utils/location.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/utils/colors.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class HomePage extends StatefulWidget {
@@ -38,7 +39,7 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      await LocationInfo.resolveCurrentCity();
+      await LocationInfo.resolveCurrentCity(LocationAccuracy.bestForNavigation);
       LocationInfo loc = LocationInfo.getInstance();
 
       setState(() {
@@ -95,16 +96,7 @@ class _HomePageState extends State<HomePage> {
           // Purple Header Background
           Container(
             height: MediaQuery.of(context).size.height * 40,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  ConstColor.primaryPurple,
-                  ConstColor.primaryPurple.withAlpha((0.8 * 255).toInt()),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
+            decoration: BoxDecoration(color: ConstColor.primaryPurple),
           ),
 
           // Main Content
@@ -266,10 +258,7 @@ class _HomePageState extends State<HomePage> {
 
                         Text(
                           "Locate your\nchosen vehicle.",
-                          style: ConstFonts.bold(
-                            size: 28,
-                            color: Colors.white,
-                          ),
+                          style: ConstFonts.bold(size: 28, color: Colors.white),
                         ),
                       ],
                     ),
@@ -307,7 +296,7 @@ class _HomePageState extends State<HomePage> {
                                 gradient: LinearGradient(
                                   colors: [
                                     ConstColor.primaryPurple,
-                                    ConstColor.primaryPurple.withAlpha(200),
+                                    ConstColor.primaryPurple25,
                                   ],
                                 ),
                               ),
@@ -323,7 +312,7 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                   ),
                                   Icon(
-                                    Icons.arrow_forward,
+                                    Icons.arrow_forward_rounded,
                                     color: Colors.white,
                                   ),
                                 ],

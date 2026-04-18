@@ -7,6 +7,7 @@ import 'package:dromos/utils/fonts.dart';
 import 'package:dromos/utils/location.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 
 class CreateRidePage extends StatefulWidget {
   const CreateRidePage({super.key, this.onRideCreated});
@@ -45,7 +46,6 @@ class _CreateRidePageState extends State<CreateRidePage> {
       if (!mounted) return;
       setState(() {
         final loc = LocationInfo.getInstance();
-
         _startPlace = PlaceResult(
           name: [
             loc.getName(),
@@ -53,8 +53,8 @@ class _CreateRidePageState extends State<CreateRidePage> {
             loc.getLocality(),
           ].where((e) => e != null && e.isNotEmpty).join(', '),
           address: loc.getLocality() ?? '',
-          lat: loc.getLocation()!.latitude,
-          lng: loc.getLocation()!.longitude,
+          lat: loc.getLocation()?.latitude ?? 0,
+          lng: loc.getLocation()?.longitude ?? 0,
         );
         _useMyLocation = true;
       });
@@ -65,7 +65,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
     if (!mounted) return;
     setState(() => _isLoadingMyLocation = true);
     try {
-      await LocationInfo.resolveCurrentCity();
+      await LocationInfo.resolveCurrentCity(LocationAccuracy.best);
       final loc = LocationInfo.getInstance();
       if (!mounted) return;
       setState(() {
@@ -192,9 +192,17 @@ class _CreateRidePageState extends State<CreateRidePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Error: ${e.toString().replaceAll('Exception: ', '')}',
+              e.toString().replaceAll('Exception: ', ''),
+              style: const TextStyle(color: ConstColor.error),
             ),
-            backgroundColor: ConstColor.error,
+            backgroundColor: Colors.red.shade100,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            duration: const Duration(seconds: 60),
+            showCloseIcon: true,
+            closeIconColor: ConstColor.error,
           ),
         );
       }

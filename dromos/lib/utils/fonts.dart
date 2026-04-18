@@ -5,7 +5,7 @@ class ConstFonts {
   static final double defaultFontSize = 12; // default size
 
   static TextStyle thin({double? size, Color? color}) {
-    return GoogleFonts.poppins(
+    return GoogleFonts.lexend(
       decoration: TextDecoration.none,
 
       color: color,
@@ -15,7 +15,7 @@ class ConstFonts {
   }
 
   static TextStyle light({double? size, Color? color}) {
-    return GoogleFonts.poppins(
+    return GoogleFonts.lexend(
       decoration: TextDecoration.none,
 
       color: color,
@@ -25,7 +25,7 @@ class ConstFonts {
   }
 
   static TextStyle normal({double? size, Color? color}) {
-    return GoogleFonts.poppins(
+    return GoogleFonts.lexend(
       decoration: TextDecoration.none,
 
       color: color,
@@ -35,7 +35,7 @@ class ConstFonts {
   }
 
   static TextStyle semibold({double? size, Color? color}) {
-    return GoogleFonts.poppins(
+    return GoogleFonts.lexend(
       decoration: TextDecoration.none,
       color: color,
       fontSize: size ?? ConstFonts.defaultFontSize,
@@ -44,7 +44,7 @@ class ConstFonts {
   }
 
   static TextStyle bold({double? size, Color? color}) {
-    return GoogleFonts.poppins(
+    return GoogleFonts.lexend(
       decoration: TextDecoration.none,
 
       color: color,

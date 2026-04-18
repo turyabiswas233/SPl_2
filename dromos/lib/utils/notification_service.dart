@@ -13,6 +13,7 @@ class NotificationController {
   static Future<void> initNotification() async {
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
+      // 'assets/logo.png',
     );
 
     const initSettings = InitializationSettings(android: androidSettings);
@@ -31,20 +32,13 @@ class NotificationController {
       importance: Importance.high,
       priority: Priority.high,
       color: ConstColor.primaryPurple,
-      colorized: false,
+      colorized: true,
       channelShowBadge: true,
-      icon: '@mipmap/ic_launcher'
     );
 
     return const NotificationDetails(android: androidDetails);
   }
 
-  ///
-  /// Create a new notification
-  /// id: notification id
-  /// title: notification title
-  /// body: notification body
-  /// payload: notification payload | notification ID
   static Future<void> createNewNotification({
     required int id,
     String? title,

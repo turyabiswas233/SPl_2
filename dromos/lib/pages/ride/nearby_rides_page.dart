@@ -5,6 +5,7 @@ import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/location.dart';
 import 'package:dromos/widgets/ride_chat_bottom_sheet.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class NearbyRidesPage extends StatefulWidget {
@@ -54,7 +55,7 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
     try {
       dynamic location = LocationInfo.getInstance();
       if (LocationInfo.isResolved == false) {
-        await LocationInfo.resolveCurrentCity();
+        await LocationInfo.resolveCurrentCity(LocationAccuracy.medium);
         location = LocationInfo.getInstance();
       }
 
@@ -106,9 +107,7 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
           );
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                result?['message'] ?? 'Failed to send request',
-              ),
+              content: Text(result?['message'] ?? 'Failed to send request'),
               backgroundColor: ConstColor.error.withAlpha(150),
             ),
           );
@@ -334,7 +333,6 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
                           color: Colors.black,
                         ),
                       ),
-
                     ],
                   ),
                 ),

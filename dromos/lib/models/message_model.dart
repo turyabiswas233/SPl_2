@@ -43,23 +43,19 @@ class MessageModel {
 class SenderInfo {
   final String userId;
   final String fullName;
+  String? phoneNumber;
 
-  SenderInfo({
-    required this.userId,
-    required this.fullName,
-  });
+  SenderInfo({required this.userId, required this.fullName, this.phoneNumber});
 
   factory SenderInfo.fromJson(Map<String, dynamic> json) {
     return SenderInfo(
       userId: json['userId'] ?? '',
       fullName: json['fullName'] ?? 'Unknown',
+      phoneNumber: json['phoneNumber'] ?? '--',
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'userId': userId,
-      'fullName': fullName,
-    };
+    return {'userId': userId, 'fullName': fullName};
   }
 }
