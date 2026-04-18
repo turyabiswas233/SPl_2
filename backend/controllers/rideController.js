@@ -90,31 +90,23 @@ const createRide = async (req, res) => {
 
     // Use transaction to create ride, participant, and notification atomically
     const result = await prisma.$transaction(async (tx) => {
-      // retrive mapbox place name from start cords
-      // const place = await fetch(
-      //   process.env.API_URL +
-      //     "/api/v1/mapbox/place-name?lng=" +
-      //     startLng +
-      //     "&lat=" +
-      //     startLat,
-      //   {
-      //     method: "GET",
-      //   },
-      // ).then((res) => res.json());
       const startLocation = req.body.startLocation;
-      // const destplace = await fetch(
-      //   process.env.API_URL +
-      //     "/api/v1/mapbox/place-name?lng=" +
-      //     destLng +
-      //     "&lat=" +
-      //     destLat,
-      //   {
-      //     method: "GET",
-      //   },
-      // ).then((res) => res.json());
-      // clog("Start place data: " + JSON.stringify(place), "warn");
-      // clog("Destination place data: " + JSON.stringify(destplace), "warn");
       const destLocation = req.body.destination;
+
+      const findIfRideExists = await tx.ride.findFirst({
+        where: {
+          initiatorId: initiator_id,
+          status: {
+            in: ["in_progress"],
+          },
+        },
+      });
+
+      if (findIfRideExists) {
+        throw new Error(
+          "You already have an active ride. Please complete or cancel it before creating a new one.",
+        );
+      }
 
       // Create ride
       const ride = await tx.ride.create({
@@ -536,7 +528,7 @@ const getNearbyRides = async (req, res) => {
             method: "GET",
           },
         ).then((res) => res.json());
-        
+
         return {
           ...ride,
           travelDistance: body?.distance, // Distance in meters
@@ -717,12 +709,21 @@ const startRide = async (req, res) => {
     // Use transaction for atomic operations
     const result = await prisma.$transaction(async (tx) => {
       // Verify initiator and check ride status
-      const rideCheck = await tx.ride.findFirst({
+      const rides = await tx.ride.findMany({
         where: {
-          rideId: ride_id,
           initiatorId: initiator_id,
         },
+        select: {
+          status: true,
+        },
       });
+
+      if (rides.find((ride) => ride.status === "in_progress")) {
+        throw new Error(
+          "You already have a ride in progress. Please complete it before starting another.",
+        );
+      }
+      const rideCheck = rides.find((ride) => ride.rideId === ride_id);
 
       if (!rideCheck) {
         throw new Error("Only the initiator can start the ride.");
