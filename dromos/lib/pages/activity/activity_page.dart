@@ -317,6 +317,8 @@ class _ActivityPageState extends State<ActivityPage>
     if (rides.isEmpty) {
       return RefreshIndicator(
         onRefresh: _fetchData,
+        color: ConstColor.primaryPurple,
+        backgroundColor: Colors.white,
         child: ListView(
           children: [
             SizedBox(height: MediaQuery.of(context).size.height * 0.15),
@@ -680,8 +682,7 @@ class _RideCard extends StatelessWidget {
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red.shade100,
-                          foregroundColor: ConstColor.error,
+                          backgroundColor: Colors.green.shade200,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -690,9 +691,9 @@ class _RideCard extends StatelessWidget {
                         ),
                         child: Text(
                           'Live',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                          style: ConstFonts.normal(
+                            size: 12,
+                            color: Colors.green.shade800,
                           ),
                         ),
                       ),
@@ -709,8 +710,7 @@ class _RideCard extends StatelessWidget {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade100,
-                        foregroundColor: ConstColor.error,
+                        backgroundColor: Colors.green.shade200,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -719,9 +719,9 @@ class _RideCard extends StatelessWidget {
                       ),
                       child: Text(
                         'Live',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
+                        style: ConstFonts.normal(
+                          size: 12,
+                          color: Colors.green.shade800,
                         ),
                       ),
                     ),
@@ -925,6 +925,7 @@ class _RideCard extends StatelessWidget {
     );
 
     try {
+      LocationInfo.resolveCurrentCity(.best);
       final location = LocationInfo.cord;
       if (location == null) throw Exception('Location not available');
 
@@ -1106,7 +1107,7 @@ class _RideCard extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           text,
-          style: ConstFonts.light(
+          style: ConstFonts.normal(
             size: 12,
             color: ConstColor.primaryPurple.withAlpha(150),
           ),
@@ -1135,183 +1136,8 @@ class _InProgressRideView extends StatefulWidget {
 }
 
 class _InProgressRideViewState extends State<_InProgressRideView> {
-  late DraggableScrollableController _scrollController;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = DraggableScrollableController();
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Map view
-        MapSample(ride: widget.ride),
-
-        // Draggable bottom sheet with ride info
-        DraggableScrollableSheet(
-          controller: _scrollController,
-          initialChildSize: 0.2,
-          minChildSize: 0.1,
-          maxChildSize: 0.7,
-          builder: (context, scrollController) => Container(
-            decoration: BoxDecoration(
-              color: ConstColor.primaryBg,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              boxShadow: [
-                BoxShadow(
-                  color: ConstColor.primaryPurple,
-                  blurRadius: 40,
-                  spreadRadius: 10,
-                ),
-              ],
-            ),
-            child: SingleChildScrollView(
-              controller: scrollController,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Handle bar
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: ConstColor.primaryPurple.withAlpha(200),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Route info
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Column(
-                          children: [
-                            const Icon(
-                              Icons.location_on_outlined,
-                              size: 12,
-                              color: ConstColor.error,
-                            ),
-                            Container(
-                              width: 2,
-                              height: 32,
-                              color: ConstColor.primaryPurple25,
-                            ),
-                            const Icon(
-                              Icons.location_pin,
-                              size: 12,
-                              color: ConstColor.success,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.ride.startLocation ,
-                                style: ConstFonts.semibold(
-                                  color: ConstColor.primaryColor,
-                                  size: 14,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 20),
-                              Text(
-                                widget.ride.destinationName,
-                                style: ConstFonts.semibold(
-                                  color: ConstColor.primaryColor,
-                                  size: 14,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-                    const Divider(),
-                    const SizedBox(height: 16),
-
-                    // Ride details grid
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildMetaItem(
-                          icon: Icons.people,
-                          label: 'Passengers',
-                          value: '${widget.ride.maxSeats}',
-                        ),
-                        _buildMetaItem(
-                          icon: Icons.info_outline,
-                          label: 'Status',
-                          value: widget.ride.status == 'in_progress'
-                              ? 'Going on'
-                              : 'Completed',
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMetaItem({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Container(
-      padding: .all(20),
-      decoration: BoxDecoration(
-        color: ConstColor.primaryPurple25.withAlpha(100),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: ConstColor.primaryPurple, size: 24),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: ConstFonts.semibold(
-              color: ConstColor.primaryColor,
-              size: 11,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: ConstFonts.semibold(
-              color: ConstColor.primaryColor,
-              size: 14,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
+    return MapSample(ride: widget.ride);
   }
 }

@@ -1,4 +1,3 @@
-import 'package:flutter/widgets.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
@@ -26,13 +25,19 @@ class LocationInfo {
 
   /// Singleton accessor (kept for backward compatibility)
   static final LocationInfo _instance = LocationInfo._();
+
   static LocationInfo getInstance() => _instance;
 
   String? getName() => name;
+
   String? getLocality() => locality;
+
   String? getSubLocality() => subLocality;
+
   String? getIsoCode() => isoCode;
+
   Cord? getLocation() => cord;
+
   /// Returns true if location has already been resolved.
   static bool get isResolved => cord != null;
 
@@ -41,8 +46,7 @@ class LocationInfo {
     return 'LocationInfo{name: $name, locality: $locality, subLocality: $subLocality, $cord}';
   }
 
-
-  static Future<void> resolveCurrentCity() async {
+  static Future<void> resolveCurrentCity(LocationAccuracy? locAcu) async {
     LocationPermission permission = await Geolocator.checkPermission();
 
     if (permission == LocationPermission.denied ||
@@ -59,7 +63,9 @@ class LocationInfo {
     }
 
     final position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      locationSettings: LocationSettings(
+        accuracy: locAcu ?? LocationAccuracy.high,
+      ),
     );
 
     final placemarks = await placemarkFromCoordinates(
@@ -70,13 +76,16 @@ class LocationInfo {
     if (placemarks.isEmpty || placemarks.first.locality == null) {
       throw Exception('Unable to resolve current city');
     }
-    debugPrint('Resolved location: ${placemarks.first}');
     var place = placemarks.first;
 
     name = place.name;
     locality = place.locality;
     subLocality = place.subLocality ?? place.street;
     isoCode = place.isoCountryCode;
+    cord = Cord(latitude: position.latitude, longitude: position.longitude);
+  }
+
+  void updateLocation(Position position) {
     cord = Cord(latitude: position.latitude, longitude: position.longitude);
   }
 }

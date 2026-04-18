@@ -22,10 +22,10 @@ ThemeData appTheme() {
       ),
     ),
     colorScheme: ColorScheme.fromSeed(seedColor: pc),
-    fontFamily: GoogleFonts.poppins(fontSize: 14, fontWeight: .w500).fontFamily,
-    fontFamilyFallback: GoogleFonts.poppins(fontSize: 14, fontWeight: .w500).fontFamilyFallback,
+    fontFamily: GoogleFonts.lexend(fontSize: 14, fontWeight: .w500).fontFamily,
+    fontFamilyFallback: GoogleFonts.lexend(fontSize: 14, fontWeight: .w500).fontFamilyFallback,
     textTheme: TextTheme(
-      bodyLarge: ConstFonts.bold(size: 16),
+      bodyLarge: ConstFonts.normal(size: 16),
       bodyMedium: ConstFonts.normal(size: 14),
       bodySmall: ConstFonts.normal(size: 12),
     ),

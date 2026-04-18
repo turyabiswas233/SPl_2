@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:dart_ipify/dart_ipify.dart';
 import 'package:dromos/utils/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -63,9 +63,12 @@ class _LoginScreenState extends State<LoginPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
+              style: ButtonStyle(
+                overlayColor: WidgetStateProperty.all(Colors.redAccent.withAlpha(50)),
+              ),
               child: Text(
                 "Got it",
-                style: ConstFonts.light(color: Colors.green.shade700, size: 14),
+                style: ConstFonts.light(color: Colors.red.shade700, size: 14),
               ),
             ),
           ],
@@ -94,9 +97,9 @@ class _LoginScreenState extends State<LoginPage> {
     }
 
     setState(() => _isLoading = true);
-
-    debugPrint(Api.url);
-
+ 
+    final localIp = await Ipify.ipv4(); 
+ 
     try {
       final body = {
         'email': _emailController.text.trim(),
@@ -130,7 +133,8 @@ class _LoginScreenState extends State<LoginPage> {
         } else {
           NotificationController.createNewNotification(
             id: -1,
-            body: "Invalid Credentials. Please check your internet connection and try again.",
+            body:
+                "Invalid Credentials. Please check your internet connection and try again.",
             title: "Login Failed",
             payload: "login_failed",
           );
@@ -143,7 +147,8 @@ class _LoginScreenState extends State<LoginPage> {
       } else {
         NotificationController.createNewNotification(
           id: -1,
-          body: "Invalid Credentials. Please check your internet connection and try again.",
+          body:
+              "Invalid Credentials. Please check your internet connection and try again.",
           title: "Login Failed",
           payload: "login_failed",
         );
@@ -155,13 +160,10 @@ class _LoginScreenState extends State<LoginPage> {
       }
     } catch (e) {
       debugPrint('Login error: $e');
-      // get my device ip
-      dynamic localIp = InternetAddress.loopbackIPv4;
-
       if (!mounted) return;
       _showErrorDialog(
         "Connection Error",
-        "Could not connect to server. Please check your internet connection and try again. API URL: ${Api.url}, Device Ip: $localIp",
+        "Could not connect to server. Please check your internet connection and try again. Device Ip: $localIp",
       );
     } finally {
       if (mounted) {

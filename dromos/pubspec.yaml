@@ -43,6 +43,8 @@ dependencies:
   mobile_scanner: ^7.2.0
   pinput: ^6.0.2
   package_info_plus: ^9.0.1
+  dart_ipify: ^1.1.1
+  flutter_phone_direct_caller: ^2.2.1
 
 dev_dependencies:
   flutter_test:
@@ -59,9 +61,8 @@ flutter:
 
   assets:
     - .env.local
+    - assets/
     - assets/cars/
-    - assets/logo.png
-    - assets/no_internet.json
 
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package

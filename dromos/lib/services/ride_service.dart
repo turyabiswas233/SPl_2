@@ -60,11 +60,11 @@ class RideService {
         if (body['success'] == true && body['data'] != null) {
           return RideModel.fromJson(body['data']);
         }
-        throw Exception(body['message'] ?? 'Failed to create ride');
+        throw Exception(body['error'] ?? 'Failed to create ride');
       } else {
         final body = jsonDecode(response.body);
         throw Exception(
-          body['message'] ?? 'Server error: ${response.statusCode}',
+          body['error'] ?? 'Server error: ${response.statusCode}',
         );
       }
     } catch (e) {
