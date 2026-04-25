@@ -1,16 +1,17 @@
 import 'dart:io';
 import 'dart:async';
-import 'package:dromos/pages/home/default_page.dart';
-import 'package:dromos/pages/no_internet_page.dart';
-import 'package:dromos/screens/main_screen.dart';
-import 'package:dromos/services/user_service.dart';
+
 import 'package:dromos/utils/colors.dart';
+import 'package:dromos/services/user_service.dart';
 import 'package:dromos/utils/notification_service.dart';
 import 'package:dromos/utils/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:dromos/pages/home/default_page.dart';
+import 'package:dromos/pages/no_internet_page.dart';
+import 'package:dromos/screens/main_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
@@ -45,7 +46,9 @@ void main() async {
   Widget defaultHome = const DefaultHomeScreen();
   if (UserService().isLoggedIn) {
     await UserService().fetchProfile();
-    defaultHome = const MainScreen();
+    defaultHome = UserService().currentUser.isEmpty
+        ? const DefaultHomeScreen()
+        : const MainScreen();
   }
 
   await NotificationController.initNotification();
@@ -78,7 +81,8 @@ Future<void> _requestPermissions() async {
 
 class MyApp extends StatefulWidget {
   final Widget defaultHome;
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
   const MyApp({super.key, required this.defaultHome});
   @override
   State<MyApp> createState() => _MyAppState();
@@ -89,7 +93,9 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     _startSplashTimer();
     initConnection();
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(_isInternetAvailable);
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      _isInternetAvailable,
+    );
     super.initState();
   }
 
@@ -108,7 +114,9 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _isInternetAvailable(List<ConnectivityResult> results) async {
     setState(() {
-      _isInternetConnected = results.contains(ConnectivityResult.mobile) || results.contains(ConnectivityResult.wifi);
+      _isInternetConnected =
+          results.contains(ConnectivityResult.mobile) ||
+          results.contains(ConnectivityResult.wifi);
     });
   }
 
@@ -121,7 +129,9 @@ class _MyAppState extends State<MyApp> {
   bool _timeoutSplash = false;
   Future<void> _startSplashTimer() async {
     await Future.delayed(const Duration(milliseconds: 1500));
-    setState(() { _timeoutSplash = true; });
+    setState(() {
+      _timeoutSplash = true;
+    });
   }
 
   @override
@@ -129,7 +139,14 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'Dromos - Enjoy the ride',
       theme: appTheme(),
-      home: !_timeoutSplash ? const SplashScreen() : (!_isInternetConnected ? NoInternetConnectionScreen(onRetry: initConnection) : widget.defaultHome),
+      initialRoute: "/",
+      routes: {
+        "/": (context) => !_timeoutSplash
+            ? const SplashScreen()
+            : (!_isInternetConnected
+                  ? NoInternetConnectionScreen(onRetry: initConnection)
+                  : widget.defaultHome),
+      },
       debugShowCheckedModeBanner: false,
     );
   }
@@ -146,7 +163,10 @@ class SplashScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image(image: AssetImage('assets/logo.png'), width: 150),
-            CircularProgressIndicator(color: ConstColor.primaryPurple, trackGap: 3),
+            CircularProgressIndicator(
+              color: ConstColor.primaryPurple,
+              trackGap: 3,
+            ),
           ],
         ),
       ),

@@ -51,6 +51,21 @@ enum SOSAlertStatus {
   resolved
 }
 
+enum PaymentStatus {
+  pending
+  processing
+  completed
+  failed
+  cancelled
+  refunded
+}
+
+enum PaymentType {
+  ride_fare
+  deposit
+  subscription
+}
+
 // User Model
 model User {
   userId               String @id @db.Uuid
@@ -80,6 +95,7 @@ model User {
   ratedAgainst         Rating[] @relation("rated")
   fares                Fare[]
   sosAlerts            SOSAlert[]
+  payments             Payment[]
 
   @@map("users")
 }
@@ -114,6 +130,7 @@ model Ride {
   ratings              Rating[]
   fares                Fare[]
   sosAlerts            SOSAlert[]
+  payments             Payment[]
 
   @@map("rides")
 }
@@ -256,4 +273,34 @@ model SOSAlert {
   user                 User @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@map("sos_alerts")
+}
+
+// Payment Model
+model Payment {
+  paymentId            String @id @default(cuid()) @db.VarChar(25)
+  orderId              String @unique
+  userId               String @db.Uuid
+  rideId               String? @db.Uuid
+  amount               Float
+  currency             String @default("BDT")
+  status               PaymentStatus @default(pending)
+  transactionId        String?
+  paymentMethod        String?
+  customerName         String?
+  customerEmail        String?
+  customerPhone        String?
+  aamarPayResponse     Json?
+  paymentStatus        String?
+  paymentTime          DateTime? @db.Timestamptz()
+  rideFare             Float?
+  platformFee          Float @default(0)
+  paymentType          PaymentType @default(ride_fare)
+  createdAt            DateTime @default(now()) @db.Timestamptz()
+  updatedAt            DateTime @updatedAt @db.Timestamptz()
+
+  // Relations
+  user                 User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  ride                 Ride? @relation(fields: [rideId], references: [rideId], onDelete: SetNull)
+
+  @@map("payments")
 }

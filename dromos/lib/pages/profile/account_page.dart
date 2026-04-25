@@ -2,9 +2,10 @@ import 'package:dromos/pages/home/default_page.dart';
 import 'package:dromos/pages/profile/editprofile_page.dart';
 import 'package:dromos/services/app_version.dart';
 import 'package:dromos/services/user_service.dart';
-import 'package:dromos/utils/fonts.dart';
+import 'package:dromos/screens/payment/payment_history_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/utils/colors.dart';
+import 'package:dromos/utils/fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 class AccountPage extends StatefulWidget {
@@ -111,7 +112,7 @@ class _AccountPageState extends State<AccountPage> {
                 ),
 
                 const SizedBox(height: 24),
-                _buildActionButtons(),
+                _buildActionButtons(context),
                 const AppVersion(),
               ],
             ),
@@ -166,11 +167,19 @@ class _AccountPageState extends State<AccountPage> {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
         children: [
+          _buildListTile('Payment History', Icons.payments_outlined, () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PaymentHistoryScreen(),
+              ),
+            );
+          }),
           _buildListTile('File a Complain', Icons.report_problem_outlined, () {
             // Navigate to Complain page
           }),

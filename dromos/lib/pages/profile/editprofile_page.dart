@@ -4,7 +4,6 @@ import 'package:dromos/utils/id_card_parser.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/utils/colors.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -271,13 +270,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   'Your QR code was validated successfully.',
                   style: ConstFonts.normal(size: 14, color: pc),
                   textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                QrImageView(
-                  data: code,
-                  version: QrVersions.auto,
-                  size: 180,
-                  gapless: true,
                 ),
                 const SizedBox(height: 12),
                 Text(

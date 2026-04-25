@@ -18,6 +18,8 @@ const sosRoutes = require('./v1/sosRoutes');
 const notificationRoutes = require('./v1/notificationRoutes');
 const userRoutes = require('./v1/userRoutes');
 const mapboxRoutes = require('./v1/mapboxRoutes');
+const paymentRoutes = require('./v1/paymentRoutes');
+
 
 // Create v1 router
 const v1Router = express.Router();
@@ -34,6 +36,7 @@ v1Router.use('/sos', sosRoutes);
 v1Router.use('/notifications', notificationRoutes);
 v1Router.use('/users', userRoutes);
 v1Router.use('/mapbox', mapboxRoutes);
+v1Router.use('/payments', paymentRoutes);
 
 // Mount v1 router
 router.use('/v1', v1Router);

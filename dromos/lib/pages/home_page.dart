@@ -1,3 +1,4 @@
+import 'package:dromos/pages/home/default_page.dart';
 import 'package:dromos/pages/home/notifications_page.dart';
 import 'package:dromos/screens/waiting_screen.dart';
 import 'package:dromos/services/notification_handler.dart';
@@ -70,18 +71,51 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _checkLocationEnabled().then((_) {
+  //     if (_isLocationEnabled) {
+  //       _fetchCurrentLocation();
+  //     }
+  //   });
+  //   if (user.isEmpty || !UserService().isLoggedIn) {
+  //     UserService().logout();
+  //   }
+  //   _fetchNotifications();
+  // }
   @override
   void initState() {
     super.initState();
+
+    // Check session immediately
+    _checkSessionAndRedirect();
+
     _checkLocationEnabled().then((_) {
       if (_isLocationEnabled) {
         _fetchCurrentLocation();
       }
     });
-    if (user.isEmpty) {
-      UserService().logout();
-    }
+
     _fetchNotifications();
+  }
+
+  void _checkSessionAndRedirect() async {
+    final userService = UserService();
+
+    // If no token or user data is invalid
+    if (!userService.isLoggedIn || userService.currentUser.userId.isEmpty) {
+      await userService.logout();
+
+      // Ensure the widget is still in the tree before navigating
+      if (!mounted) return;
+
+      // Redirect to Login Screen and clear navigation stack
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const DefaultHomeScreen()),
+        (Route<dynamic> route) => true,
+      );
+    }
   }
 
   @override
