@@ -1,7 +1,9 @@
 import 'package:dromos/models/ride_model.dart';
+import 'package:dromos/pages/profile/editprofile_page.dart';
 import 'package:dromos/pages/ride/place_search_page.dart';
 import 'package:dromos/screens/waiting_screen.dart';
 import 'package:dromos/services/ride_service.dart';
+import 'package:dromos/services/user_service.dart';
 import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';
 import 'package:dromos/utils/location.dart';
@@ -35,6 +37,7 @@ class _CreateRidePageState extends State<CreateRidePage> {
   bool _isCreating = false;
 
   final _rideService = RideService();
+  final _userService = UserService();
 
   @override
   void initState() {
@@ -391,9 +394,84 @@ class _CreateRidePageState extends State<CreateRidePage> {
     }
   }
 
+  Future<void> _goToEditProfile() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const EditProfilePage()),
+    );
+    if (mounted) setState(() {});
+  }
+
+  Widget _buildVerificationBlocked() {
+    return SafeArea(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: ConstColor.primaryPurple.withAlpha(25),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.lock_outline,
+                  color: ConstColor.primaryPurple,
+                  size: 44,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Account Not Verified',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'You must verify your profile before creating a ride. Tap the button below to update your profile and complete verification.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _goToEditProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ConstColor.primaryPurple,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    'Verify Profile',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = _userService.currentUser;
     final bool isBusy = _isCreating || _isLoadingMyLocation;
+    final bool isVerified = user.isVerified;
 
     return PopScope(
       canPop: !isBusy,
@@ -405,7 +483,9 @@ class _CreateRidePageState extends State<CreateRidePage> {
         backgroundColor: ConstColor.primaryBg,
         body: isBusy
             ? const WaitingOverlay(captionText: "Setting up your ride")
-            : SafeArea(
+            : !isVerified
+                ? _buildVerificationBlocked()
+                : SafeArea(
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

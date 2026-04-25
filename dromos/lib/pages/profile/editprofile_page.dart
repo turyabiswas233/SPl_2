@@ -1,10 +1,10 @@
-import 'package:dromos/services/ocr_service.dart';
 import 'package:dromos/services/user_service.dart';
 import 'package:dromos/utils/fonts.dart';
 import 'package:dromos/utils/id_card_parser.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/utils/colors.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -29,12 +29,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late final TextEditingController _deptCtrl;
   late final TextEditingController _hallCtrl;
   late final TextEditingController _genderCtrl;
-  late final OcrService _ocrService;
 
   @override
   void initState() {
     super.initState();
-    _ocrService = OcrService();
     final user = _userService.currentUser;
     _fullNameCtrl = TextEditingController(text: user.fullName);
     _phoneCtrl = TextEditingController(text: user.phoneNumber);
@@ -49,7 +47,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   void dispose() {
-    _ocrService.dispose();
     _fullNameCtrl.dispose();
     _phoneCtrl.dispose();
     _deptCtrl.dispose();
@@ -256,143 +253,142 @@ class _EditProfilePageState extends State<EditProfilePage> {
       );
     }
 
-    Future<void> scanBothSides(ImageSource source) async {
-      try {
-        // Scan back side
-        final backImagePath = await _ocrService.scanImageOnly(source: source);
-
-        if (backImagePath == null) {
-          if (mounted) {
-            showErrorDialog('No image captured for back side', [
-              'Please try again and capture the back side of your ID card',
-            ]);
-          }
-          return;
-        }
-        setState(() {
-          _isLoading = true;
-        });
-        // Process back side
-        await _ocrService.processImageForUniqueCode(
-          backImagePath,
-          "unique id check",
-        );
-
-        IdCardParser.isValidUniqueCode(
-          UserService().currentUser.registrationNumber,
-        ).then((isValid) {
-          if (isValid) {
-            _refreshProfile();
-          } else {
-            if (mounted) {
-              showErrorDialog('Invalid Unique ID extracted from the card', [
-                'Please ensure you are scanning the back side of a valid DU ID card',
-                'Try adjusting the distance and lighting for better results',
-              ]);
-            }
-          }
-        });
-      } catch (e) {
-        if (mounted) {
-          showErrorDialog('Unexpected error: ${e.toString()}', [
-            'Please try again or fill the form manually',
-          ]);
-        }
-        setState(() {
-          _isLoading = false;
-        });
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      }
-    }
-
-    Future<void> promptScanIdCard() async {
-      final result = await showDialog<String?>(
+    Future<void> showVerificationSuccess(String code) async {
+      if (!mounted) return;
+      await showDialog<void>(
         context: context,
-        barrierDismissible: true,
-        animationStyle: AnimationStyle(
-          curve: Curves.easeInOut,
-          duration: const Duration(milliseconds: 300),
-        ),
-        builder: (BuildContext context) {
+        builder: (context) {
           return AlertDialog(
             backgroundColor: Colors.white,
-
             title: Text(
-              'Scan ID Card',
+              'Verification Successful',
               style: ConstFonts.bold(size: 20, color: accentColor),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Please scan back side of your DU ID card to get student Unique Id.',
+                  'Your QR code was validated successfully.',
                   style: ConstFonts.normal(size: 14, color: pc),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
+                QrImageView(
+                  data: code,
+                  version: QrVersions.auto,
+                  size: 180,
+                  gapless: true,
+                ),
+                const SizedBox(height: 12),
                 Text(
-                  'Choose scanning method:',
-                  style: ConstFonts.bold(size: 13, color: accentColor),
+                  code,
+                  textAlign: TextAlign.center,
+                  style: ConstFonts.normal(size: 12, color: pc),
                 ),
               ],
             ),
             actions: [
-              OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).pop('gallery'),
-                icon: const Icon(Icons.photo_library),
-                label: Text(
-                  'Upload Image',
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Close',
                   style: ConstFonts.normal(size: 14, color: accentColor),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: accentColor,
-                  backgroundColor: Colors.white,
-                  side: BorderSide(color: accentColor),
-                ),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).pop('camera'),
-                icon: const Icon(Icons.camera_alt),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: accentColor,
-                  backgroundColor: Colors.white,
-                  side: BorderSide(color: accentColor),
-                ),
-                label: Text(
-                  'Use Camera',
-                  style: ConstFonts.normal(size: 14, color: accentColor),
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  // exit ocr card
-                  Navigator.of(context).pop();
-                },
-                label: Text(
-                  'Cancel',
-                  style: ConstFonts.normal(size: 14, color: Colors.white),
-                ),
-                icon: const Icon(Icons.close, color: Colors.white),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accentColor.withAlpha(230),
                 ),
               ),
             ],
           );
         },
       );
+    }
 
-      if (result != null && mounted) {
-        if (result == 'camera') {
-          await scanBothSides(ImageSource.camera);
-        } else if (result == 'gallery') {
-          await scanBothSides(ImageSource.gallery);
-        }
+    Future<void> validateVerificationCode(String code) async {
+      setState(() => _isLoading = true);
+      IdCardParser.uniqueCode = code.split('/').last;
+      final regNum = _userService.currentUser.registrationNumber;
+      final isValid = await IdCardParser.isValidUniqueCode(regNum);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+
+      if (!mounted) return;
+
+      if (isValid) {
+        await _refreshProfile();
+        await showVerificationSuccess(code);
+      } else {
+        showErrorDialog(
+          'Invalid unique QR code.',
+          [
+            'Make sure the code is from an authorized DU QR card or pass.',
+            'Try scanning again with better lighting.',
+          ],
+        );
+      }
+    }
+
+    Future<void> scanVerificationQr() async {
+      final scannedCode = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.black,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (context) => SizedBox(
+          height: MediaQuery.of(context).size.height * 0.8,
+          child: Stack(
+            children: [
+              MobileScanner(
+                onDetect: (capture) {
+                  final barcodes = capture.barcodes;
+                  if (barcodes.isNotEmpty) {
+                    final String? code = barcodes.first.rawValue;
+                    debugPrint('Scanned QR code: $code');
+                    if (code != null && code.isNotEmpty) {
+                      Navigator.pop(context, code);
+                    }
+                  }
+                },
+              ),
+              Positioned(
+                top: 24,
+                right: 24,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+              Center(
+                child: Container(
+                  width: 250,
+                  height: 250,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white, width: 2),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+              ),
+              const Positioned(
+                bottom: 100,
+                left: 0,
+                right: 0,
+                child: Text(
+                  'Scan verification QR code',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (scannedCode != null && scannedCode.isNotEmpty) {
+        await validateVerificationCode(scannedCode);
       }
     }
 
@@ -430,9 +426,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               padding: const EdgeInsets.all(0),
             ),
             onPressed: () async {
-              debugPrint("hi");
-              // from service/ocr_service.dart get student unique id and send to verification page
-              await promptScanIdCard();
+              await scanVerificationQr();
             },
             child: user.verificationTag,
           )
