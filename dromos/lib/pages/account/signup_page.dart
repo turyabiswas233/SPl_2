@@ -1,8 +1,6 @@
-import 'package:dromos/components/select_box.dart';
 import 'package:dromos/pages/account/signup_page2.dart';
 import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';
-import 'package:dromos/utils/id_card_parser.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/components/custom_input.dart';
 import 'package:dromos/services/ocr_service.dart';

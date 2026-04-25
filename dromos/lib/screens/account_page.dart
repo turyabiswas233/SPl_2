@@ -1,5 +1,7 @@
 import 'package:dromos/pages/home/home_page.dart';
 import 'package:dromos/screens/editprofile_page.dart';
+import 'package:dromos/screens/payment/payment_history_screen.dart';
+import 'package:dromos/screens/payment/payment_screen.dart';
 import 'package:dromos/services/user_service.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/utils/colors.dart';
@@ -98,7 +100,28 @@ class _AccountPageState extends State<AccountPage> {
                 ),
 
                 const SizedBox(height: 24),
-                _buildActionButtons(),
+                 _buildActionButtons(),
+                 const SizedBox(height: 16),
+                 ElevatedButton.icon(
+                   onPressed: () {
+                     Navigator.push(
+                       context,
+                       MaterialPageRoute(
+                         builder: (context) => const PaymentScreen(),
+                       ),
+                     );
+                   },
+                   icon: const Icon(Icons.payment),
+                   label: const Text('Make a Payment'),
+                   style: ElevatedButton.styleFrom(
+                     backgroundColor: const Color(0xFF00796B),
+                     foregroundColor: Colors.white,
+                     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                     shape: RoundedRectangleBorder(
+                       borderRadius: BorderRadius.circular(12),
+                     ),
+                   ),
+                 ),
               ],
             ),
     );
@@ -168,6 +191,14 @@ class _AccountPageState extends State<AccountPage> {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
         children: [
+          _buildListTile('Payment History', Icons.payments_outlined, () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PaymentHistoryScreen(),
+              ),
+            );
+          }),
           _buildListTile('Settings', Icons.settings_outlined, () {
             // TODO: Navigate to Settings page
           }),

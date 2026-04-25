@@ -1,4 +1,3 @@
-import 'dart:math';
 
 import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';

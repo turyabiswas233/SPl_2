@@ -62,7 +62,7 @@ class IdCardParser {
 
   /// check if uniquecode is valid of the user using the identifier url
   static Future<bool> isValidUniqueCode(String detectedRegNum) async {
-    const String baseUrl = _duIdIdentifierUrl + '/';
+    const String baseUrl = '$_duIdIdentifierUrl/';
     final String urlToCheck = baseUrl + uniqueCode;
     http.Client();
     final response = await http.get(Uri.parse(urlToCheck));
