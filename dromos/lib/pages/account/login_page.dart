@@ -1,6 +1,7 @@
 import 'dart:convert';
+import 'package:dart_ipify/dart_ipify.dart';
+import 'package:dromos/utils/notification_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:dromos/components/custom_input.dart';
@@ -62,17 +63,26 @@ class _LoginScreenState extends State<LoginPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
+              style: ButtonStyle(
+                overlayColor: WidgetStateProperty.all(Colors.redAccent.withAlpha(50)),
+              ),
               child: Text(
                 "Got it",
-                style: ConstFonts.light(
-                  color: Colors.green.shade700,
-                  size: 14,
-                ),
+                style: ConstFonts.light(color: Colors.red.shade700, size: 14),
               ),
             ),
           ],
         );
       },
+    );
+  }
+
+  Future<void> _navigateToMainScreen() async {
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const MainScreen()),
+      (Route<dynamic> route) => false,
     );
   }
 
@@ -87,18 +97,22 @@ class _LoginScreenState extends State<LoginPage> {
     }
 
     setState(() => _isLoading = true);
-
+ 
+    final localIp = await Ipify.ipv4(); 
+ 
     try {
       final body = {
         'email': _emailController.text.trim(),
         'password': _passwordController.text,
       };
 
-      final response = await http.post(
-        Uri.parse('${Api.URL}/auth/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .post(
+            Uri.parse('${Api.url}/auth/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (!mounted) return;
 
@@ -109,62 +123,39 @@ class _LoginScreenState extends State<LoginPage> {
           // Save session & fetch full profile
           final token = responseData['data']?['token'] ?? '';
           final userId = responseData['data']?['user']?['user_id'] ?? '';
-          final fullName = responseData['data']?['user']?['full_name'] ?? '';
 
           final userService = UserService();
           await userService.saveSession(token: token, userId: userId);
           await userService.fetchProfile();
 
-          if (!mounted) return;
-
-          // Show success dialog then navigate
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext ctx) {
-              return AlertDialog(
-                title: Text(
-                  "Login Successful",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: pc, fontWeight: FontWeight.bold),
-                ),
-                content: Text("Welcome, $fullName"),
-                backgroundColor: Colors.white,
-                icon: const Icon(Icons.check_circle),
-                iconColor: Colors.green,
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(ctx).pop();
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                            builder: (context) => const MainScreen()),
-                        (Route<dynamic> route) => false,
-                      );
-                    },
-                    child: Text(
-                      "Continue",
-                      style: ConstFonts.light(
-                        color: Colors.green.shade700,
-                        size: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
+          // Navigate to main screen
+          _navigateToMainScreen();
         } else {
+          NotificationController.createNewNotification(
+            id: -1,
+            body:
+                "Invalid Credentials. Please check your internet connection and try again.",
+            title: "Login Failed",
+            payload: "login_failed",
+          );
           _showErrorDialog(
             "Login Failed",
-            responseData['message'] ?? "Invalid credentials. Please try again.",
+            responseData['message'] ??
+                "Invalid credentials. Please check your internet connection and try again.",
           );
         }
       } else {
+        NotificationController.createNewNotification(
+          id: -1,
+          body:
+              "Invalid Credentials. Please check your internet connection and try again.",
+          title: "Login Failed",
+          payload: "login_failed",
+        );
         _showErrorDialog(
           "Login Failed",
           responseData['message'] ??
-              "Server error (${response.statusCode}). Please try again.",
+              "Invalid Credentials. Please check your internet connection and try again.",
         );
       }
     } catch (e) {
@@ -172,7 +163,7 @@ class _LoginScreenState extends State<LoginPage> {
       if (!mounted) return;
       _showErrorDialog(
         "Connection Error",
-        "Could not connect to server. Please check your internet connection and try again.",
+        "Could not connect to server. Please check your internet connection and try again. Device Ip: $localIp",
       );
     } finally {
       if (mounted) {
@@ -198,7 +189,7 @@ class _LoginScreenState extends State<LoginPage> {
       appBar: AppBar(
         title: const Text(
           "Dromos - Login",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
         ),
         backgroundColor: Colors.transparent,
         bottomOpacity: 0,
@@ -240,91 +231,6 @@ class _LoginScreenState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 32.0),
 
-                // Google and Facebook Buttons
-                // _SocialLoginButton(
-                //   text: "Login with Google",
-                //   svgData: googleSvgData,
-                //   onTap: () {
-                //     showDialog(
-                //       context: context,
-                //       builder: (BuildContext context) {
-                //         return AlertDialog(
-                //           title: Text(
-                //             "Login-BTN - Google",
-                //             textAlign: TextAlign.center,
-                //             style: TextStyle(
-                //               color: pc,
-                //               fontWeight: FontWeight.bold,
-                //             ),
-                //           ),
-                //           backgroundColor: pbc,
-                //           icon: Icon(Icons.info_outline),
-                //           iconColor: accentColor,
-                //           actions: [
-                //             TextButton(
-                //               onPressed: () {
-                //                 Navigator.of(context).pop();
-                //               },
-                //               child: Text(
-                //                 "Close",
-                //                 style: ConstFonts.light(
-                //                   color: Colors.red,
-                //                   size: 14,
-                //                 ),
-                //               ),
-                //             ),
-                //           ],
-                //         );
-                //       },
-                //     );
-                //   },
-                // ),
-                // const SizedBox(height: 16.0),
-                // _SocialLoginButton(
-                //   text: "Login with Facebook",
-                //   svgData: facebookSvgData,
-                //   onTap: () {
-                //     showDialog(
-                //       context: context,
-                //       builder: (BuildContext context) {
-                //         return AlertDialog(
-                //           title: Text(
-                //             "Login-BTN - FB",
-                //             style: TextStyle(
-                //               color: pc,
-                //               fontWeight: FontWeight.bold,
-                //             ),
-                //           ),
-                //           icon: Icon(Icons.info_outline),
-                //           iconColor: accentColor,
-                //           backgroundColor: pbc,
-                //           actions: [
-                //             TextButton(
-                //               onPressed: () {
-                //                 Navigator.of(context).pop();
-                //               },
-                //               child: Text(
-                //                 "Close",
-                //                 style: ConstFonts.light(
-                //                   color: Colors.red,
-                //                   size: 14,
-                //                 ),
-                //               ),
-                //             ),
-                //           ],
-                //         );
-                //       },
-                //     );
-                //   },
-                // ),
-                // const SizedBox(height: 24.0),
-                //
-                // // "OR" Divider
-                // const _OrDivider(),
-                // const SizedBox(height: 24.0),
-
-                // Email and Password Fields
-                // Assign the controllers to the CustomInput widgets
                 CustomInput(
                   title: "Email",
                   hint: "example@gmail.com",
@@ -342,25 +248,7 @@ class _LoginScreenState extends State<LoginPage> {
                   // Assign controller
                   isPassword: true,
                 ),
-                const SizedBox(height: 16.0),
-                // ... (Your existing code for Remember me, etc.)
-
-                // Remember Me Checkbox
-                Row(
-                  children: [
-                    Checkbox(
-                      activeColor: accentColor,
-                      value: rememberMe,
-                      onChanged: (bool? value) {
-                        setState(() {
-                          rememberMe = value ?? false;
-                        });
-                      },
-                    ),
-                    Text("Remember me", style: ConstFonts.normal(color: pc)),
-                  ],
-                ),
-                const SizedBox(height: 20.0),
+                const SizedBox(height: 26.0),
 
                 // Login Button
                 SizedBox(
@@ -369,9 +257,14 @@ class _LoginScreenState extends State<LoginPage> {
                     onPressed: _isLoading ? null : () => _handleLogin(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accentColor,
+                      overlayColor: pbc.withAlpha(20),
+                      disabledBackgroundColor: accentColor.withAlpha(100),
+                      disabledIconColor: accentColor.withAlpha(200),
+                      iconSize: 20,
+                      iconColor: pbc,
                       padding: const EdgeInsets.symmetric(vertical: 14.0),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
+                        borderRadius: BorderRadius.circular(99.0),
                       ),
                     ),
                     child: _isLoading
@@ -395,7 +288,7 @@ class _LoginScreenState extends State<LoginPage> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              Icon(Icons.login, color: pbc),
+                              Icon(Icons.login),
                             ],
                           ),
                   ),
@@ -451,70 +344,6 @@ class _LoginScreenState extends State<LoginPage> {
           ),
         ),
       ),
-    );
-  }
-}
-
-// ... (Your helper widgets _SocialLoginButton and _OrDivider remain the same)
-// Helper Widget for Social Login Buttons (like your GoogleLoginBtn)
-class _SocialLoginButton extends StatelessWidget {
-  final String text;
-  final String svgData;
-  final VoidCallback onTap;
-
-  const _SocialLoginButton({
-    required this.text,
-    required this.svgData,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 4.0,
-      color: Colors.white,
-      shadowColor: Colors.grey.withAlpha(100),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20.0),
-        child: Container(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SvgPicture.string(svgData, height: 32.0),
-              const SizedBox(width: 16.0),
-              Text(
-                text,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Helper Widget for the "OR" Divider
-class _OrDivider extends StatelessWidget {
-  const _OrDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Expanded(child: Divider(color: Colors.grey)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Text("OR", style: TextStyle(color: Colors.grey[600])),
-        ),
-        const Expanded(child: Divider(color: Colors.grey)),
-      ],
     );
   }
 }

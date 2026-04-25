@@ -1,8 +1,6 @@
-import 'package:dromos/components/select_box.dart';
 import 'package:dromos/pages/account/signup_page2.dart';
 import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';
-import 'package:dromos/utils/id_card_parser.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/components/custom_input.dart';
 import 'package:dromos/services/ocr_service.dart';
@@ -28,8 +26,8 @@ class _SignupScreenState extends State<SignupPage> {
   final TextEditingController _departmentController = TextEditingController();
   final TextEditingController _hallController = TextEditingController();
   final TextEditingController _sessionController = TextEditingController();
+  static const List<String> _genderOptions = ['Male', 'Female', 'Other'];
 
-  bool _hasScannedId = false;
   bool _isScanning = false;
 
   // OCR Service instance
@@ -63,6 +61,7 @@ class _SignupScreenState extends State<SignupPage> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: pbc,
           title: Text(
             'Scan ID Card',
             style: ConstFonts.bold(size: 20, color: accentColor),
@@ -72,7 +71,7 @@ class _SignupScreenState extends State<SignupPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Please scan both side of your DU ID card to auto-fill registration details.',
+                'Please scan front side of your DU ID card to auto-fill registration details.',
                 style: ConstFonts.normal(size: 14, color: pc),
               ),
               const SizedBox(height: 16),
@@ -121,6 +120,7 @@ class _SignupScreenState extends State<SignupPage> {
               icon: const Icon(Icons.edit, color: Colors.white),
               style: ElevatedButton.styleFrom(
                 backgroundColor: accentColor.withAlpha(230),
+                overlayColor: pbc.withAlpha(100),
               ),
             ),
           ],
@@ -164,7 +164,6 @@ class _SignupScreenState extends State<SignupPage> {
       if (mounted && frontResult.success && frontResult.data != null) {
         _fillFormWithIdCardInfo(frontResult.data!);
         setState(() {
-          _hasScannedId = true;
           _isScanning = false;
         });
       } else if (mounted) {
@@ -188,77 +187,12 @@ class _SignupScreenState extends State<SignupPage> {
     }
   }
 
-  Future<String?> _showScanBackSideDialog() async {
-    return showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'Scan Back Side',
-            style: ConstFonts.bold(size: 18, color: accentColor),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Scan back side of your ID card?\n\n(Optional - for verification purposes)',
-                style: ConstFonts.normal(size: 14, color: pc),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Choose scanning method:',
-                style: ConstFonts.bold(size: 13, color: accentColor),
-              ),
-            ],
-          ),
-          actions: [
-            OutlinedButton.icon(
-              onPressed: () => Navigator.of(context).pop('gallery'),
-              icon: const Icon(Icons.photo_library),
-              label: Text(
-                'Upload Image',
-                style: ConstFonts.normal(size: 14, color: accentColor),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: accentColor,
-                backgroundColor: Colors.white,
-                side: BorderSide(color: accentColor),
-              ),
-            ),
-            OutlinedButton.icon(
-              onPressed: () => Navigator.of(context).pop('camera'),
-              icon: const Icon(Icons.camera_alt),
-              label: Text(
-                'Use Camera',
-                style: ConstFonts.normal(size: 14, color: accentColor),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: accentColor,
-                backgroundColor: Colors.white,
-                side: BorderSide(color: accentColor),
-              ),
-            ),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.of(context).pop('skip'),
-              icon: const Icon(Icons.skip_next, color: Colors.white),
-              label: Text(
-                'Skip',
-                style: ConstFonts.normal(size: 14, color: Colors.white),
-              ),
-              style: ElevatedButton.styleFrom(backgroundColor: accentColor),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   void _showErrorDialog(String message, List<String>? tips) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: pbc,
           title: Row(
             children: [
               Icon(Icons.error_outline, color: Colors.red, size: 28),
@@ -299,18 +233,23 @@ class _SignupScreenState extends State<SignupPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Fill Manually',
-                style: ConstFonts.normal(size: 14, color: Colors.grey),
+              style: TextButton.styleFrom(
+                foregroundColor: pc,
+                backgroundColor: Colors.black26,
+                overlayColor: Colors.redAccent.withAlpha(150),
               ),
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Fill Manually', style: ConstFonts.normal(size: 14)),
             ),
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 _promptScanIdCard(); // Retry with options
               },
-              style: ElevatedButton.styleFrom(backgroundColor: accentColor),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accentColor,
+                overlayColor: pbc.withAlpha(100),
+              ),
               child: Text(
                 'Try Again',
                 style: ConstFonts.normal(size: 14, color: Colors.white),
@@ -324,7 +263,25 @@ class _SignupScreenState extends State<SignupPage> {
 
   void _fillFormWithIdCardInfo(IdCardInfo info) {
     if (info.registrationNumber != null) {
-      _registrationController.text = info.registrationNumber!;
+      final scannedRegistration = info.registrationNumber!.trim();
+      final registrationRegex = RegExp(r'^\d{10}$');
+      if (registrationRegex.hasMatch(scannedRegistration)) {
+        _registrationController.text = scannedRegistration;
+      } else {
+        _registrationController.clear();
+        if (mounted && info.hasData) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'ID card scanned, but registration number is invalid. Please enter a 10-digit registration manually.',
+                style: ConstFonts.normal(size: 14, color: Colors.black),
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
     }
 
     if (info.name != null) {
@@ -353,12 +310,66 @@ class _SignupScreenState extends State<SignupPage> {
         SnackBar(
           content: Text(
             'ID card scanned successfully!',
-            style: ConstFonts.normal(size: 14, color: Colors.white),
+            style: ConstFonts.normal(size: 14, color: Colors.black),
           ),
           backgroundColor: Colors.green,
         ),
       );
     }
+  }
+
+  Widget _buildGenderDropdown() {
+    final selectedGender =
+        _genderOptions.contains(_genderController.text.toLowerCase())
+        ? _genderController.text.toLowerCase()
+        : null;
+
+    return DropdownButtonFormField<String>(
+      initialValue: selectedGender,
+      items: _genderOptions
+          .map(
+            (gender) => DropdownMenuItem<String>(
+              value: gender.toLowerCase(),
+              child: Text(
+                gender.toUpperCase(),
+                style: ConstFonts.normal(size: 14, color: pc),
+              ),
+            ),
+          )
+          .toList(),
+      onChanged: (value) {
+        if (value == null) return;
+        setState(() {
+          _genderController.text = value.toLowerCase();
+        });
+      },
+      hint: Text(
+        'Select gender',
+        style: ConstFonts.normal(size: 14, color: pc.withAlpha(150)),
+      ),
+      iconEnabledColor: accentColor,
+      dropdownColor: pbc,
+      style: ConstFonts.normal(size: 14, color: pc),
+      decoration: InputDecoration(
+        labelText: 'Gender',
+        labelStyle: ConstFonts.normal(size: 14, color: pc),
+        prefixIcon: Icon(Icons.wc_rounded, color: accentColor),
+        filled: true,
+        fillColor: Colors.white.withAlpha(13),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(99.0),
+          borderSide: BorderSide(color: pc.withAlpha(50), width: 1.5),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(99.0),
+          borderSide: BorderSide(color: pc.withAlpha(50), width: 1.5),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(99.0),
+          borderSide: BorderSide(color: accentColor, width: 2.0),
+        ),
+      ),
+    );
   }
 
   @override
@@ -448,6 +459,8 @@ class _SignupScreenState extends State<SignupPage> {
                       controller: _nameController,
                     ),
                     const SizedBox(height: 16.0),
+                    _buildGenderDropdown(),
+                    const SizedBox(height: 16.0),
                     // department input
                     CustomInput(
                       title: "Department",
@@ -474,6 +487,7 @@ class _SignupScreenState extends State<SignupPage> {
                           // Validate required fields
                           if (_registrationController.text.isEmpty ||
                               _nameController.text.isEmpty ||
+                              _genderController.text.isEmpty ||
                               _departmentController.text.isEmpty ||
                               _hallController.text.isEmpty) {
                             showDialog(
@@ -490,7 +504,49 @@ class _SignupScreenState extends State<SignupPage> {
                                     ),
                                   ),
                                   content: const Text(
-                                    "Please fill in all required fields before proceeding",
+                                    "Please fill in all required fields (including gender) before proceeding",
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: Text(
+                                        "Got it",
+                                        style: ConstFonts.light(
+                                          color: Colors.green.shade700,
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                            return;
+                          }
+
+                          // Validate registration number format (exactly 10 digits)
+                          final registrationNumber = _registrationController
+                              .text
+                              .trim();
+                          final registrationRegex = RegExp(r'^\d{10}$');
+                          if (!registrationRegex.hasMatch(registrationNumber)) {
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  backgroundColor: Colors.white,
+                                  title: Text(
+                                    "Invalid Registration Number",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: pc,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  content: const Text(
+                                    "Registration number must be exactly 10 digits (e.g., 2022106304)",
                                   ),
                                   actions: [
                                     TextButton(
@@ -518,9 +574,10 @@ class _SignupScreenState extends State<SignupPage> {
                             MaterialPageRoute(
                               builder: (context) => SignupPage2(
                                 userData: {
-                                  'registration': _registrationController.text,
+                                  'registration': registrationNumber,
                                   'name': _nameController.text,
-                                  'gender': _genderController.text,
+                                  'gender': _genderController.text
+                                      .toLowerCase(),
                                   'department': _departmentController.text,
                                   'hall': _hallController.text,
                                 },
@@ -532,7 +589,7 @@ class _SignupScreenState extends State<SignupPage> {
                           backgroundColor: accentColor,
                           padding: const EdgeInsets.symmetric(vertical: 14.0),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.0),
+                            borderRadius: BorderRadius.circular(99.0),
                           ),
                         ),
                         child: Row(

@@ -1,6 +1,10 @@
 import 'package:dromos/services/user_service.dart';
+import 'package:dromos/utils/fonts.dart';
+import 'package:dromos/utils/id_card_parser.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/utils/colors.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -18,14 +22,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
   static const Color accentColor = ConstColor.primaryPurple;
   static const Color fColor = ConstColor.primaryColor;
   static const Color bColor = ConstColor.primaryBg;
-  static const Color maleColor = Colors.lightBlue;
-  static const Color femaleColor = Colors.purpleAccent;
+  static const Color sColor = ConstColor.secondaryColor;
 
   late final TextEditingController _fullNameCtrl;
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _deptCtrl;
   late final TextEditingController _hallCtrl;
-  String _selectedGender = '';
+  late final TextEditingController _genderCtrl;
 
   @override
   void initState() {
@@ -35,7 +38,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _phoneCtrl = TextEditingController(text: user.phoneNumber);
     _deptCtrl = TextEditingController(text: user.deptName);
     _hallCtrl = TextEditingController(text: user.hallName);
-    _selectedGender = user.gender;
+    _genderCtrl = TextEditingController(text: user.gender);
 
     if (user.isEmpty && _userService.isLoggedIn) {
       _refreshProfile();
@@ -48,6 +51,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _phoneCtrl.dispose();
     _deptCtrl.dispose();
     _hallCtrl.dispose();
+    _genderCtrl.dispose();
     super.dispose();
   }
 
@@ -60,7 +64,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       _phoneCtrl.text = user.phoneNumber;
       _deptCtrl.text = user.deptName;
       _hallCtrl.text = user.hallName;
-      _selectedGender = user.gender;
+      _genderCtrl.text = user.gender;
       setState(() => _isLoading = false);
     }
   }
@@ -74,7 +78,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       phoneNumber: _phoneCtrl.text.trim(),
       deptName: _deptCtrl.text.trim(),
       hallName: _hallCtrl.text.trim(),
-      gender: _selectedGender.toLowerCase(),
+      gender: _genderCtrl.text.trim().toLowerCase(),
     );
     if (mounted) {
       setState(() => _isSaving = false);
@@ -84,12 +88,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
             success
                 ? 'Profile updated successfully!'
                 : 'Failed to update profile.',
+            style: ConstFonts.semibold(
+              size: 12,
+              color: success ? Colors.green : Colors.red,
+            ),
           ),
-          backgroundColor: success ? Colors.green : Colors.redAccent,
+          backgroundColor: success ? Colors.green.shade50 : Colors.red.shade50,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
+          duration: const Duration(seconds: 2),
         ),
       );
       if (success) Navigator.of(context).pop();
@@ -104,9 +113,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
           'Edit Profile',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: fColor,
-        elevation: 0,
+        backgroundColor: accentColor,
+        foregroundColor: sColor,
       ),
       backgroundColor: bColor,
       body: _isLoading
@@ -181,51 +189,212 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   // ── Profile Header ──────────────────────────────────────────────────────
-
   Widget _buildProfileHeader() {
+    Color pc = ConstColor.primaryColor;
+    Color accentColor = ConstColor.primaryPurple;
+
     final user = _userService.currentUser;
-    final isVerified = user.verificationStatus.toLowerCase() == 'verified';
-    Color genderColor = user.gender.toLowerCase() == 'male'
-        ? maleColor
-        : femaleColor;
+    void showErrorDialog(String message, List<String>? tips) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            title: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Scanning Failed',
+                    style: ConstFonts.bold(size: 18, color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(message, style: ConstFonts.normal(size: 14, color: pc)),
+                  if (tips != null && tips.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'Tips for better scanning:',
+                      style: ConstFonts.bold(size: 14, color: accentColor),
+                    ),
+                    const SizedBox(height: 8),
+                    ...tips.map(
+                      (tip) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(
+                          tip,
+                          style: ConstFonts.normal(size: 13, color: pc),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                style: TextButton.styleFrom(foregroundColor: ConstColor.error),
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Close',
+                  style: ConstFonts.normal(size: 14, color: ConstColor.error),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
+    Future<void> showVerificationSuccess(String code) async {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            title: Text(
+              'Verification Successful',
+              style: ConstFonts.bold(size: 20, color: accentColor),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Your QR code was validated successfully.',
+                  style: ConstFonts.normal(size: 14, color: pc),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                QrImageView(
+                  data: code,
+                  version: QrVersions.auto,
+                  size: 180,
+                  gapless: true,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  code,
+                  textAlign: TextAlign.center,
+                  style: ConstFonts.normal(size: 12, color: pc),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Close',
+                  style: ConstFonts.normal(size: 14, color: accentColor),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
+    Future<void> validateVerificationCode(String code) async {
+      setState(() => _isLoading = true);
+      IdCardParser.uniqueCode = code.split('/').last;
+      final regNum = _userService.currentUser.registrationNumber;
+      final isValid = await IdCardParser.isValidUniqueCode(regNum);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+
+      if (!mounted) return;
+
+      if (isValid) {
+        await _refreshProfile();
+        await showVerificationSuccess(code);
+      } else {
+        showErrorDialog(
+          'Invalid unique QR code.',
+          [
+            'Make sure the code is from an authorized DU QR card or pass.',
+            'Try scanning again with better lighting.',
+          ],
+        );
+      }
+    }
+
+    Future<void> scanVerificationQr() async {
+      final scannedCode = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.black,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (context) => SizedBox(
+          height: MediaQuery.of(context).size.height * 0.8,
+          child: Stack(
+            children: [
+              MobileScanner(
+                onDetect: (capture) {
+                  final barcodes = capture.barcodes;
+                  if (barcodes.isNotEmpty) {
+                    final String? code = barcodes.first.rawValue;
+                    debugPrint('Scanned QR code: $code');
+                    if (code != null && code.isNotEmpty) {
+                      Navigator.pop(context, code);
+                    }
+                  }
+                },
+              ),
+              Positioned(
+                top: 24,
+                right: 24,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+              Center(
+                child: Container(
+                  width: 250,
+                  height: 250,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white, width: 2),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+              ),
+              const Positioned(
+                bottom: 100,
+                left: 0,
+                right: 0,
+                child: Text(
+                  'Scan verification QR code',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (scannedCode != null && scannedCode.isNotEmpty) {
+        await validateVerificationCode(scannedCode);
+      }
+    }
 
     return Column(
       children: [
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            CircleAvatar(
-              radius: 48,
-              backgroundColor: genderColor.withAlpha(30),
-              child: Icon(
-                user.gender == 'male'
-                    ? Icons.person_rounded
-                    : Icons.person_2_rounded,
-                size: 50,
-                color: genderColor,
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: bColor,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(25),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Icon(
-                isVerified ? Icons.verified_rounded : Icons.pending_outlined,
-                size: 22,
-                color: isVerified ? Colors.green : Colors.orange,
-              ),
-            ),
-          ],
-        ),
+        Stack(alignment: Alignment.bottomRight, children: [user.avatar()]),
         const SizedBox(height: 12),
         Text(
           user.fullName.isNotEmpty ? user.fullName : 'User',
@@ -236,25 +405,33 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
         ),
         const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: isVerified
-                ? Colors.green.withAlpha(25)
-                : Colors.orange.withAlpha(25),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            isVerified ? 'Verified' : 'Unverified',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isVerified
-                  ? Colors.green.shade700
-                  : Colors.orange.shade700,
+        if (!user.isVerified)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.orangeAccent.withAlpha(50),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              "Click the tag below to verify your account",
+              style: TextStyle(fontSize: 12),
             ),
           ),
-        ),
+        if (!user.isVerified)
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.all(0),
+            ),
+            onPressed: () async {
+              await scanVerificationQr();
+            },
+            child: user.verificationTag,
+          )
+        else
+          user.verificationTag,
       ],
     );
   }
@@ -289,7 +466,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
-      style: const TextStyle(fontSize: 15, color: fColor),
+      style: ConstFonts.normal(size: 14, color: fColor),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(color: fColor.withAlpha(140)),
@@ -344,19 +521,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade500,
+                  style: ConstFonts.semibold(
+                    size: 12,
+                    color: fColor.withAlpha(100),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value.isNotEmpty ? value : '—',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: fColor.withAlpha(180),
-                    fontWeight: FontWeight.w500,
+                  style: ConstFonts.semibold(
+                    size: 14,
+                    color: fColor.withAlpha(100),
                   ),
                 ),
               ],
@@ -375,51 +550,37 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // ── Gender Selector ─────────────────────────────────────────────────────
 
   Widget _buildGenderSelector() {
-    final genders = ['male', 'female', 'other'];
+    var genders = ['male', 'female', 'other'];
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: accentColor.withAlpha(10),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.wc_rounded, color: accentColor, size: 22),
-          const SizedBox(width: 8),
-          Text(
-            'Gender',
-            style: TextStyle(fontSize: 15, color: fColor.withAlpha(140)),
+    return DropdownButtonFormField<String>(
+      initialValue: _genderCtrl.text.isNotEmpty ? _genderCtrl.text : null,
+      items: genders.map((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Text(
+            value.toUpperCase(),
+            style: ConstFonts.normal(size: 14, color: ConstColor.primaryColor),
           ),
-          const Spacer(),
-
-          Padding(
-            padding: const EdgeInsets.only(left: 2),
-            child: RadioGroup<int>(
-              groupValue: genders.indexOf(_selectedGender),
-              onChanged: (int? value) {
-                setState(() {
-                  _selectedGender = genders[value!];
-                });
-              },
-              child: Row(
-                children: List.generate(genders.length, (index) {
-                  return Row(
-                    children: [
-                      Radio<int>(value: index),
-                      Text(
-                        genders[index].replaceFirst(
-                          genders[index][0],
-                          genders[index][0].toUpperCase(),
-                        ),
-                      ),
-                    ],
-                  );
-                }),
-              ),
-            ),
-          ),
-        ],
+        );
+      }).toList(),
+      onChanged: (String? newValue) {
+        setState(() {
+          _genderCtrl.text = newValue!;
+        });
+      },
+      iconEnabledColor: accentColor,
+      dropdownColor: ConstColor.primaryBg,
+      style: ConstFonts.normal(size: 14, color: ConstColor.primaryColor),
+      decoration: InputDecoration(
+        labelText: 'Gender',
+        labelStyle: ConstFonts.normal(size: 14, color: ConstColor.primaryColor),
+        prefixIcon: Icon(Icons.wc_rounded, color: accentColor),
+        filled: true,
+        fillColor: accentColor.withAlpha(10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }

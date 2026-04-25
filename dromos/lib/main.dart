@@ -1,73 +1,155 @@
 import 'dart:io';
-
-import 'package:dromos/pages/home/home_page.dart';
-import 'package:dromos/utils/colors.dart';
+import 'dart:async';
+import 'package:dromos/pages/home/default_page.dart';
+import 'package:dromos/pages/no_internet_page.dart';
+import 'package:dromos/screens/main_screen.dart';
 import 'package:dromos/services/user_service.dart';
-import 'package:dromos/utils/noti.dart';
+import 'package:dromos/utils/colors.dart';
+import 'package:dromos/utils/notification_service.dart';
 import 'package:dromos/utils/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 void main() async {
-  Color accentColor = ConstColor.primaryPurple;
-
   SystemChrome.setSystemUIOverlayStyle(
     SystemUiOverlayStyle(
-      statusBarColor: accentColor.withAlpha(50),
-      systemNavigationBarColor: accentColor.withAlpha(200),
+      statusBarColor: ConstColor.primaryColor.withAlpha(50),
+      systemNavigationBarColor: ConstColor.primaryPurple.withAlpha(200),
+      statusBarBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    // Load environment variables globally
+    await dotenv.load(fileName: ".env.local");
+    String? token = dotenv.env['MAPBOX_ACCESS_TOKEN'];
+    if (token != null && token.isNotEmpty) {
+      MapboxOptions.setAccessToken(token);
+    }
+  } catch (e) {
+    debugPrint("Environment load error: $e");
+  }
+
+  /// request necessary permissions before app starts
   await _requestPermissions();
-  NotiService().initNoti();
+
   // Load saved session & fetch profile if token exists
   await UserService().init();
-  runApp(MyApp());
+  Widget defaultHome = const DefaultHomeScreen();
+  if (UserService().isLoggedIn) {
+    await UserService().fetchProfile();
+    defaultHome = const MainScreen();
+  }
+
+  await NotificationController.initNotification();
+  runApp(MyApp(defaultHome: defaultHome));
 }
 
-// request necessary permissions
+// ... rest of main.dart (kept as is)
 Future<void> _requestPermissions() async {
-  // notification (Android 13+ needs POST_NOTIFICATIONS too)
-
   if (Platform.isAndroid) {
-    final statuses = await [
+    List<Permission> permissionList = [
       Permission.location,
       Permission.notification,
       Permission.camera,
-    ].request();
+      Permission.mediaLibrary,
+      Permission.photos,
+    ];
+    final statuses = await [...permissionList].request();
 
-    if (statuses[Permission.location]!.isGranted) {
-      debugPrint("Location permission granted");
-    } else {
-      debugPrint("Location permission denied");
-    }
-    if (statuses[Permission.notification]!.isGranted) {
-      debugPrint("Notification permission granted");
-    } else {
-      debugPrint("Notification permission denied");
-    }
-    if (statuses[Permission.camera]!.isGranted) {
-      debugPrint("Camera permission granted");
-    } else {
-      debugPrint("Camera permission denied");
-    }
+    statuses.forEach((key, val) {
+      if (val.isDenied) {
+        debugPrint("${val.toString()} permission denied");
+      } else if (val.isGranted) {
+        debugPrint("${val.toString()} permission granted");
+      }
+    });
   } else {
-    // may be something erro
     debugPrint("something error in access");
   }
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MyApp extends StatefulWidget {
+  final Widget defaultHome;
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  const MyApp({super.key, required this.defaultHome});
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    _startSplashTimer();
+    initConnection();
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(_isInternetAvailable);
+    super.initState();
+  }
+
+  bool _isInternetConnected = false;
+  late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
+
+  Future<void> initConnection() async {
+    List<ConnectivityResult> results;
+    try {
+      results = await Connectivity().checkConnectivity();
+    } catch (e) {
+      results = [ConnectivityResult.none];
+    }
+    return _isInternetAvailable(results);
+  }
+
+  Future<void> _isInternetAvailable(List<ConnectivityResult> results) async {
+    setState(() {
+      _isInternetConnected = results.contains(ConnectivityResult.mobile) || results.contains(ConnectivityResult.wifi);
+    });
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription.cancel();
+    super.dispose();
+  }
+
+  bool _timeoutSplash = false;
+  Future<void> _startSplashTimer() async {
+    await Future.delayed(const Duration(milliseconds: 1500));
+    setState(() { _timeoutSplash = true; });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'Dromos - Enjoy the ride',
       theme: appTheme(),
-      home: const HomeScreen(),
+      home: !_timeoutSplash ? const SplashScreen() : (!_isInternetConnected ? NoInternetConnectionScreen(onRetry: initConnection) : widget.defaultHome),
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image(image: AssetImage('assets/logo.png'), width: 150),
+            CircularProgressIndicator(color: ConstColor.primaryPurple, trackGap: 3),
+          ],
+        ),
+      ),
     );
   }
 }

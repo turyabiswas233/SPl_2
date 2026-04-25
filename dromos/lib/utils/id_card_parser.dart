@@ -1,12 +1,13 @@
-import 'package:flutter/foundation.dart';
+import 'dart:convert';
+
+import 'package:flutter/rendering.dart';
 import 'package:http/http.dart' as http;
 import 'package:dromos/models/id_card_info.dart';
+import 'package:dromos/utils/api.dart';
 
 class IdCardParser {
   /// DU-ID identifier URL
   static String uniqueCode = '';
-  static const String _duIdIdentifierUrl =
-      'https://academic.eis.du.ac.bd/en/studentship';
 
   /// Parse recognized text from ID card and extract relevant information
   static IdCardInfo parse(String recognizedText) {
@@ -61,17 +62,23 @@ class IdCardParser {
   }
 
   /// check if uniquecode is valid of the user using the identifier url
-  static Future<bool> isValidUniqueCode(String detectedRegNum) async {
-    const String baseUrl = _duIdIdentifierUrl + '/';
-    final String urlToCheck = baseUrl + uniqueCode;
-    http.Client();
-    final response = await http.get(Uri.parse(urlToCheck));
-    if (response.statusCode == 200) {
-      if (response.body.contains(detectedRegNum)) {
+  static Future<bool> isValidUniqueCode(String regNum) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${Api.url}/auth/studentship/$uniqueCode?reg_id=$regNum'),
+      );
+      // if response status is 200, get new user data
+      // so update the user info inside userService
+      if (response.statusCode == 200) {
+        debugPrint(json.decode(response.body).toString());
         return true;
+      } else {
+        debugPrint('Invalid unique code: ${response.statusCode}');
+        return false;
       }
+    } catch (e) {
+      debugPrint('Error validating unique code: $e');
       return false;
     }
-    return false;
   }
 }

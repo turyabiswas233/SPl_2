@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:dromos/utils/colors.dart';
+import 'package:dromos/utils/fonts.dart';
 
 ThemeData appTheme() {
   Color pc = ConstColor.primaryColor;
   Color pbc = ConstColor.primaryBg;
-  Color accentColor = ConstColor.primaryPurple;
+  Color accentColor = ConstColor.primaryPurple.withAlpha(250);
 
   return ThemeData(
     useSystemColors: false,
@@ -14,12 +15,23 @@ ThemeData appTheme() {
       actionsIconTheme: IconThemeData(color: accentColor),
       backgroundColor: Colors.transparent,
       foregroundColor: pc,
-      systemOverlayStyle: SystemUiOverlayStyle.dark,
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarBrightness: Brightness.dark,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
     ),
-    fontFamily: GoogleFonts.poppins().fontFamily,
-    fontFamilyFallback: GoogleFonts.poppins().fontFamilyFallback,
+    colorScheme: ColorScheme.fromSeed(seedColor: pc),
+    fontFamily: GoogleFonts.lexend(fontSize: 14, fontWeight: .w500).fontFamily,
+    fontFamilyFallback: GoogleFonts.lexend(fontSize: 14, fontWeight: .w500).fontFamilyFallback,
+    textTheme: TextTheme(
+      bodyLarge: ConstFonts.normal(size: 16),
+      bodyMedium: ConstFonts.normal(size: 14),
+      bodySmall: ConstFonts.normal(size: 12),
+    ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: pbc,
+      foregroundColor: accentColor,
     ),
   );
 }

@@ -10,11 +10,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///
 /// Usage anywhere in the app:
 /// final userService = UserService();
-/// 
+///
 /// await userService.init();
-/// 
+///
 /// final user = userService.currentUser;
-/// 
+///
 /// final token = userService.token;
 class UserService {
   // ---- singleton boilerplate ----
@@ -63,7 +63,7 @@ class UserService {
 
     try {
       final response = await http.get(
-        Uri.parse('${Api.URL}/auth/me'),
+        Uri.parse('${Api.url}/auth/me'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
@@ -74,12 +74,14 @@ class UserService {
         final body = jsonDecode(response.body);
         if (body['success'] == true && body['data'] != null) {
           // The user object may be nested under body['data']['user'] or body['data']
-          final userData = body['data']['user'] ?? body['data'];
+          final userData = body['data'];
           _currentUser = UserModel.fromJson(userData);
           _userId = _currentUser.userId;
           return _currentUser;
         }
+        return null;
       }
+      return null;
     } catch (e) {
       debugPrint('UserService.fetchProfile error: $e');
     }
@@ -90,7 +92,7 @@ class UserService {
   Future<UserModel?> fetchUserProfile(String userId) async {
     try {
       final response = await http.get(
-        Uri.parse('${Api.URL}/users/$userId/profile'),
+        Uri.parse('${Api.url}/users/$userId/profile'),
         headers: {
           'Content-Type': 'application/json',
           if (_token.isNotEmpty) 'Authorization': 'Bearer $_token',
@@ -101,6 +103,7 @@ class UserService {
         final body = jsonDecode(response.body);
         if (body['success'] == true && body['data'] != null) {
           final userData = body['data']['user'] ?? body['data'];
+
           return UserModel.fromJson(userData);
         }
       }
@@ -110,28 +113,37 @@ class UserService {
     return null;
   }
 
+  Future<void> setCurrentUser(UserModel user) async {
+    _currentUser = user;
+    _userId = user.userId;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_id', user.userId);
+    await prefs.setString('full_name', user.fullName);
+  }
+
   // ---- update profile via PUT /auth/update ----
   Future<bool> updateProfile({
-    required String fullName,
-    required String phoneNumber,
-    required String deptName,
-    required String hallName,
-    required String gender,
+    String? fullName,
+    String? phoneNumber,
+    String? deptName,
+    String? hallName,
+    String? gender,
   }) async {
     if (_token.isEmpty) return false;
 
     try {
       final response = await http.put(
-        Uri.parse('${Api.URL}/auth/update'),
+        Uri.parse('${Api.url}/auth/update'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
         },
         body: jsonEncode({
-          'full_name': fullName,
-          'phone_number': phoneNumber,
-          'dept_name': deptName,
-          'hall_name': hallName,
+          'fullName': fullName,
+          'phoneNumber': phoneNumber,
+          'deptName': deptName,
+          'hallName': hallName,
           'gender': gender,
         }),
       );
@@ -145,13 +157,13 @@ class UserService {
           // Update currentUser with the new values locally
           _currentUser = UserModel(
             userId: _currentUser.userId,
-            fullName: fullName,
+            fullName: fullName ?? _currentUser.fullName,
             email: _currentUser.email,
-            phoneNumber: phoneNumber,
+            phoneNumber: phoneNumber ?? _currentUser.phoneNumber,
             registrationNumber: _currentUser.registrationNumber,
-            deptName: deptName,
-            hallName: hallName,
-            gender: gender,
+            deptName: deptName ?? _currentUser.deptName,
+            hallName: hallName ?? _currentUser.hallName,
+            gender: gender ?? _currentUser.gender,
             verificationStatus: _currentUser.verificationStatus,
           );
           // Also try to merge server response if available

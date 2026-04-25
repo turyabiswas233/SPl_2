@@ -1,5 +1,6 @@
 import 'package:dromos/pages/account/login_page.dart';
 import 'package:dromos/pages/account/signup_page.dart';
+import 'package:dromos/services/app_version.dart';
 import 'package:dromos/utils/fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/utils/colors.dart';
@@ -21,24 +22,23 @@ class Fonts {
   Fonts(this.name, this.weight);
 }
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class DefaultHomeScreen extends StatelessWidget {
+  const DefaultHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return _HomeScreen(context);
+    return _DefaultPage(context);
   }
 }
 
-class _HomeScreen extends HomeScreen {
+class _DefaultPage extends DefaultHomeScreen {
   final BuildContext context;
 
-  _HomeScreen(this.context);
+  _DefaultPage(this.context);
 
-  Color pc = ConstColor.primaryColor;
-  Color pbc = ConstColor.primaryBg;
-  Color secondaryColor = ConstColor.primaryPurple;
-
+  final Color pc = ConstColor.primaryColor;
+  final Color pbc = ConstColor.primaryBg;
+  final Color accentColor = ConstColor.primaryPurple;
 
   late final List<SizedBox> buttons = [
     SizedBox(
@@ -58,10 +58,11 @@ class _HomeScreen extends HomeScreen {
           );
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: secondaryColor,
+          backgroundColor: accentColor,
+          overlayColor: pbc.withAlpha(20),
           padding: const EdgeInsets.symmetric(vertical: 14.0),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(99.0),
           ),
         ),
         child: const Text(
@@ -90,10 +91,11 @@ class _HomeScreen extends HomeScreen {
           );
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: secondaryColor,
+          backgroundColor: accentColor,
+          overlayColor: pbc.withAlpha(20),
           padding: const EdgeInsets.symmetric(vertical: 14.0),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(99.0),
           ),
         ),
         child: const Text(
@@ -124,7 +126,7 @@ class _HomeScreen extends HomeScreen {
                     Text(
                       "Dromos",
                       textAlign: TextAlign.center,
-                      style: ConstFonts.bold(color: secondaryColor, size: 64),
+                      style: ConstFonts.bold(color: accentColor, size: 64),
                     ),
                     Text(
                       "Smart Simple Sustainable",
@@ -135,10 +137,11 @@ class _HomeScreen extends HomeScreen {
                 ),
 
                 Container(
-                  margin: EdgeInsets.only(top: 150),
+                  margin: EdgeInsets.only(top: 150, bottom: 20),
                   padding: const EdgeInsets.all(24),
                   child: Column(spacing: 24, children: [...buttons]),
                 ),
+                const AppVersion(),
               ],
             ),
           ),

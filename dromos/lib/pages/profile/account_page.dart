@@ -1,8 +1,11 @@
-import 'package:dromos/pages/home/home_page.dart';
-import 'package:dromos/screens/editprofile_page.dart';
+import 'package:dromos/pages/home/default_page.dart';
+import 'package:dromos/pages/profile/editprofile_page.dart';
+import 'package:dromos/services/app_version.dart';
 import 'package:dromos/services/user_service.dart';
+import 'package:dromos/utils/fonts.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/utils/colors.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -17,13 +20,19 @@ class _AccountPageState extends State<AccountPage> {
 
   static const Color accentColor = ConstColor.primaryPurple;
   static const Color fColor = ConstColor.primaryColor;
-  static const Color bColor = ConstColor.primaryBg;
-  static const Color maleColor = Colors.lightBlue;
-  static const Color femaleColor = Colors.purpleAccent;
+  static const Color bColor = ConstColor.secondaryColor;
+  String? packageName;
+  String? appVersion;
 
   @override
   void initState() {
     super.initState();
+    PackageInfo.fromPlatform().then((PackageInfo pi) {
+      setState(() {
+        packageName = pi.packageName;
+        appVersion = pi.version;
+      });
+    });
     // Refresh profile on page load if data is stale
     if (_userService.currentUser.isEmpty && _userService.isLoggedIn) {
       _refreshProfile();
@@ -42,8 +51,8 @@ class _AccountPageState extends State<AccountPage> {
     await _userService.logout();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
-      (Route<dynamic> route) => false,
+      MaterialPageRoute(builder: (context) => const DefaultHomeScreen()),
+      (Route<dynamic> route) => true,
     );
   }
 
@@ -52,7 +61,8 @@ class _AccountPageState extends State<AccountPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Account'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: ConstColor.primaryPurple,
+        toolbarHeight: 0.0,
         foregroundColor: ConstColor.primaryColor,
       ),
       backgroundColor: ConstColor.primaryBg,
@@ -77,11 +87,14 @@ class _AccountPageState extends State<AccountPage> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: accentColor,
+                        overlayColor: bColor.withAlpha(20),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 48,
                           vertical: 12,
-                        ), // Adjust padding
-                        minimumSize: Size.zero, // Remove default min size
+                        ),
+                        // Adjust padding
+                        minimumSize: Size.zero,
+                        // Remove default min size
                         tapTargetSize: MaterialTapTargetSize
                             .shrinkWrap, // Remove extra space
                       ),
@@ -99,6 +112,7 @@ class _AccountPageState extends State<AccountPage> {
 
                 const SizedBox(height: 24),
                 _buildActionButtons(),
+                const AppVersion(),
               ],
             ),
     );
@@ -106,9 +120,6 @@ class _AccountPageState extends State<AccountPage> {
 
   Widget _buildProfileInfoCard() {
     final user = _userService.currentUser;
-    Color genderColor = user.gender.toLowerCase() == 'male'
-        ? maleColor
-        : femaleColor;
 
     return Container(
       // 1. Decoration handles Color, Radius, and Shadow
@@ -119,16 +130,8 @@ class _AccountPageState extends State<AccountPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            CircleAvatar(
-              radius: 40,
-              // Added a slightly darker shade for the circle background for contrast
-              backgroundColor: genderColor.withAlpha(50),
-              child: Icon(
-                user.gender == 'male'? Icons.person_rounded : Icons.person_2_rounded,
-                size: 50,
-                color: genderColor,
-              ),
-            ),
+            user.avatar(),
+
             SizedBox(height: 16),
             Text(
               user.fullName.isNotEmpty ? user.fullName : 'User',
@@ -168,17 +171,14 @@ class _AccountPageState extends State<AccountPage> {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
         children: [
-          _buildListTile('Settings', Icons.settings_outlined, () {
-            // TODO: Navigate to Settings page
-          }),
           _buildListTile('File a Complain', Icons.report_problem_outlined, () {
-            // TODO: Navigate to Complain page
+            // Navigate to Complain page
           }),
           _buildListTile('About Us', Icons.info_outline, () {
-            // TODO: Navigate to About Us page
+            // Navigate to About Us page
           }),
           _buildListTile('Contact Us', Icons.contact_support_outlined, () {
-            // TODO: Navigate to Contact Us page
+            // Navigate to Contact Us page
           }),
           _buildListTile(
             'Logout',
@@ -204,7 +204,7 @@ class _AccountPageState extends State<AccountPage> {
     final tileColor = color ?? ConstColor.primaryPurple;
     return ListTile(
       leading: Icon(icon, color: tileColor, size: 20),
-      title: Text(title, style: TextStyle(fontSize: 14, color: color)),
+      title: Text(title, style: ConstFonts.light(size: 14, color: color)),
       trailing: dense ? const Icon(Icons.arrow_forward_ios, size: 12) : null,
       style: ListTileStyle.list,
       onTap: onTap,
