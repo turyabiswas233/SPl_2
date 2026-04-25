@@ -120,7 +120,7 @@ class _MyAppState extends State<MyApp> {
 
   bool _timeoutSplash = false;
   Future<void> _startSplashTimer() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 1500));
     setState(() { _timeoutSplash = true; });
   }
 

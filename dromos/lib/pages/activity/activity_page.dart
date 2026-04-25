@@ -360,6 +360,8 @@ class _ActivityPageState extends State<ActivityPage>
 
     return RefreshIndicator(
       onRefresh: _fetchData,
+      color: ConstColor.primaryPurple,
+      backgroundColor: Colors.white,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: rides.length,
@@ -781,7 +783,7 @@ class _RideCard extends StatelessWidget {
                     data: ride.tripQrCode,
                     version: QrVersions.auto,
                     eyeStyle: const QrEyeStyle(
-                      eyeShape: QrEyeShape.circle,
+                      eyeShape: QrEyeShape.square,
                       color: ConstColor.primaryPurple,
                     ),
                     dataModuleStyle: const QrDataModuleStyle(
