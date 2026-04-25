@@ -1,11 +1,12 @@
 require("dotenv").config({ path: [".env"], override: false });
 const express = require("express");
 const cors = require("cors");
-const mongoose = require("mongoose");
+const swaggerJsdoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
 
 // Import configurations
 const corsOptions = require("./config/cors");
-const { initDB } = require("./config/database");
+const { initDB, disconnectDB } = require("./config/database");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -15,25 +16,63 @@ const apiRoutes = require("./routes/index");
 
 // Initialize Express app
 const app = express();
+const { Server } = require("socket.io");
+const connectMongoDB = require("./db/mongoose");
+const server = require("http").createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  },
+});
+
+// Swagger definition
+const swaggerDefinition = {
+  openapi: "3.0.0",
+  info: {
+    title: "Dromos Backend API",
+    version: "1.0.0",
+    description: "API documentation for Dromos ride-sharing backend",
+  },
+  servers: [
+    {
+      url: `http://localhost:${process.env.PORT || 3000}`,
+      description: "Development server",
+    },
+  ],
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+      },
+    },
+  },
+  security: [
+    {
+      bearerAuth: [],
+    },
+  ],
+};
+
+const options = {
+  swaggerDefinition,
+  apis: ["./routes/**/*.js", "./controllers/**/*.js"], // Paths to files containing OpenAPI definitions
+};
+
+const swaggerSpec = swaggerJsdoc(options);
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors(corsOptions));
 
+// Swagger route
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // API Routes
 app.use("/api", apiRoutes);
-
-// Root route
-app.get("/", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Dromos Backend API",
-    version: "1.0",
-    currentVersion: "v1",
-    documentation: "/api/info",
-  });
-});
 
 // 404 Handler
 app.use((req, res) => {
@@ -52,26 +91,34 @@ const PORT = process.env.PORT || 3000;
 // Start Server
 const startServer = async () => {
   try {
-    // Connect to MongoDB
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ MongoDB Connected");
-
-    // Initialize PostgreSQL Tables
+    // Initialize Prisma Database Connection
     await initDB();
-    console.log("✅ PostgreSQL Initialized");
+    await connectMongoDB();
 
     // Start Express Server
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`🚀 Dromos Backend running on port ${PORT}`);
-      console.log(`📍 API Documentation: http://localhost:${PORT}/api/info`);
-      console.log(`📍 API v1 Base: http://localhost:${PORT}/api/v1`);
+      console.log(`📍 API (v1) Docs: http://localhost:${PORT}/api/docs`);
+      console.log(`🔗 Using: Prisma ORM`);
     });
   } catch (error) {
     console.error("❌ Server startup failed:", error);
+    await disconnectDB();
     process.exit(1);
   }
 };
 
+// Graceful Shutdown
+process.on("SIGINT", async () => {
+  console.log("\n📛 Shutting down gracefully...");
+  await disconnectDB();
+  process.exit(0);
+});
+
 startServer();
 
-module.exports = app;
+module.exports = {
+  app,
+  io,
+  server,
+};

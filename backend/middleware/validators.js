@@ -40,17 +40,16 @@ const validateLogin = (req, res, next) => {
 
 const validateRideCreation = (req, res, next) => {
   const {
-    initiator_id,
-    start_location,
-    start_lat,
-    start_lng,
+    startLocation,
+    startLat,
+    startLng,
     destination,
-    dest_lat,
-    dest_lng,
-    max_seats,
+    destLat,
+    destLng,
+    maxSeats,
   } = req.body;
 
-  if (!initiator_id || !start_location || !destination || !max_seats) {
+  if (!startLocation || !destination || !maxSeats) {
     return res.status(400).json({
       success: false,
       error: "Missing required fields",
@@ -58,10 +57,10 @@ const validateRideCreation = (req, res, next) => {
   }
 
   if (
-    typeof start_lat !== "number" ||
-    typeof start_lng !== "number" ||
-    typeof dest_lat !== "number" ||
-    typeof dest_lng !== "number"
+    typeof startLat !== "number" ||
+    typeof startLng !== "number" ||
+    typeof destLat !== "number" ||
+    typeof destLng !== "number"
   ) {
     return res.status(400).json({
       success: false,
@@ -69,7 +68,7 @@ const validateRideCreation = (req, res, next) => {
     });
   }
 
-  if (max_seats < 1 || max_seats > 20) {
+  if (maxSeats < 1 || maxSeats > 20) {
     return res.status(400).json({
       success: false,
       error: "Max seats must be between 1 and 20",
@@ -125,6 +124,29 @@ const validateUUID = (paramName) => (req, res, next) => {
   next();
 };
 
+const validateJoinByQr = (req, res, next) => {
+  const { tripQrCode, userId } = req.body;
+
+  if (!tripQrCode || !userId) {
+    return res.status(400).json({
+      success: false,
+      error: "Missing required fields: tripQrCode and userId",
+    });
+  }
+
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  if (!uuidRegex.test(userId)) {
+    return res.status(400).json({
+      success: false,
+      error: "Invalid userId format",
+    });
+  }
+
+  next();
+};
+
 module.exports = {
   validateRegistration,
   validateLogin,
@@ -132,4 +154,5 @@ module.exports = {
   validateMovementTracking,
   validateRating,
   validateUUID,
+  validateJoinByQr,
 };

@@ -1,69 +1,96 @@
 /**
  * Ride Request Controller
- * Handles ride join requests and approvals
+ * Handles ride join requests and approvals using Prisma ORM
  */
 
-const pool = require('../db/db');
+const prisma = require('../db/prismaClient');
 const { v4: uuidv4 } = require('uuid');
+const { clog } = require('../utils/log');
+const { postNotification } = require('./notificationController');
 
 // @desc    Request to join a ride
 // @route   POST /api/rides/:ride_id/requests
 // @access  Private
 const createRideRequest = async (req, res) => {
   const { ride_id } = req.params;
-  const { requester_id } = req.body;
+  const  requester_id  = req.user.userId;
 
-  const requestId = uuidv4();
-  const notificationId = uuidv4();
-
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-
-    // Check if ride is still open
-    const rideCheck = await client.query(
-      `SELECT r.*, u.full_name as requester_name
-       FROM rides r, users u
-       WHERE r.ride_id = $1 AND u.user_id = $2 AND r.status = 'open'`,
-      [ride_id, requester_id]
-    );
-
-    if (rideCheck.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ 
-        success: false, 
-        message: "Ride not available or user not found." 
+    // Use transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Check if ride is still open and get ride details
+      const ride = await tx.ride.findFirst({
+        where: {
+          rideId: ride_id,
+          status: "open",
+        },
+        include: {
+          initiator: {
+            select: {
+              userId: true,
+              fullName: true,
+            },
+          },
+        },
       });
-    }
 
-    const ride = rideCheck.rows[0];
+      if (!ride) {
+        throw new Error("Ride not available.");
+      }
 
-    // Insert request
-    const requestResult = await client.query(
-      `INSERT INTO ride_requests (request_id, ride_id, requester_id, status)
-       VALUES ($1, $2, $3, 'pending')
-       RETURNING *`,
-      [requestId, ride_id, requester_id]
-    );
+      // Verify requester exists
+      const requester = await tx.user.findUnique({
+        where: { userId: requester_id },
+      });
 
-    // Notify ride initiator
-    const notificationMessage = `${ride.requester_name} has requested to join your ride to ${ride.destination_name}.`;
-    await client.query(
-      `INSERT INTO notifications (notification_id, user_id, ride_id, message)
-       VALUES ($1, $2, $3, $4)`,
-      [notificationId, ride.initiator_id, ride_id, notificationMessage]
-    );
+      if (!requester) {
+        throw new Error("User not found.");
+      }
 
-    await client.query('COMMIT');
-    res.status(201).json({ 
-      success: true, 
-      data: requestResult.rows[0] 
+      const requestId = uuidv4();
+      const notificationId = uuidv4();
+
+      // check if already requested
+      const existingRequest = await tx.rideRequest.findFirst({
+        where: {
+          rideId: ride_id,
+          requesterId: requester_id,
+        },
+      });
+
+      if (existingRequest) {
+        clog(`User ${requester_id} has already requested to join ride ${ride_id}`, "warn");
+        throw new Error("You have already requested to join this ride.");
+      }
+
+      // Create request
+      const rideRequest = await tx.rideRequest.create({
+        data: {
+          requestId,
+          rideId: ride_id,
+          requesterId: requester_id,
+          status: "pending",
+        },
+      });
+
+      // Notify ride initiator using notification service
+      const notificationMessage = `${requester.fullName} has requested to join your ride to ${ride.destinationName}.`;
+      await postNotification(ride.initiatorId, notificationMessage, ride_id, tx);
+
+      return rideRequest;
+    });
+
+    res.status(201).json({
+      success: true,
+      data: result,
     });
   } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
+    console.error("Create ride request error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message || "Error creating ride request",
+      error: err.message,
+    });
   }
 };
 
@@ -72,84 +99,90 @@ const createRideRequest = async (req, res) => {
 // @access  Private
 const updateRideRequest = async (req, res) => {
   const { ride_id, request_id } = req.params;
-  const { action, meeting_lat, meeting_lng } = req.body;
+  const { action, meetingLat, meetingLng } = req.body;
 
-  const participantId = uuidv4();
-  const notificationId = uuidv4();
-
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-
-    // Get request details
-    const requestCheck = await client.query(
-      `SELECT rr.*, r.destination_name, u.full_name as requester_name
-       FROM ride_requests rr
-       JOIN rides r ON rr.ride_id = r.ride_id
-       JOIN users u ON rr.requester_id = u.user_id
-       WHERE rr.request_id = $1 AND rr.ride_id = $2 AND rr.status = 'pending'`,
-      [request_id, ride_id]
-    );
-
-    if (requestCheck.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ 
-        success: false, 
-        message: "Request not found or already processed." 
+    // Use transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Get request details
+      const rideRequest = await tx.rideRequest.findFirst({
+        where: {
+          requestId: request_id,
+          rideId: ride_id,
+          status: "pending",
+        },
+        include: {
+          ride: {
+            select: {
+              destinationName: true,
+            },
+          },
+          requester: {
+            select: {
+              fullName: true,
+            },
+          },
+        },
       });
-    }
 
-    const request = requestCheck.rows[0];
+      if (!rideRequest) {
+        throw new Error("Request not found or already processed.");
+      }
 
-    if (action === 'accept') {
-      // Update request status
-      await client.query(
-        `UPDATE ride_requests SET status = 'accepted' WHERE request_id = $1`,
-        [request_id]
-      );
+      if (action === "accept") {
+        // Update request status
+        await tx.rideRequest.update({
+          where: { requestId: request_id },
+          data: { status: "accepted" },
+        });
 
-      // Add to ride participants
-      await client.query(
-        `INSERT INTO ride_participants (participant_id, ride_id, user_id, meeting_lat, meeting_lng, has_met)
-         VALUES ($1, $2, $3, $4, $5, FALSE)`,
-        [participantId, ride_id, request.requester_id, meeting_lat, meeting_lng]
-      );
+        // Add to ride participants
+        const rideParticipantId = uuidv4();
+        await tx.rideParticipant.create({
+          data: {
+            rideParticipantId,
+            rideId: ride_id,
+            userId: rideRequest.requesterId,
+            participantId: rideRequest.requesterId,
+            meetingLat: meetingLat ? parseFloat(meetingLat) : null,
+            meetingLng: meetingLng ? parseFloat(meetingLng) : null,
+            hasMetBoolean: false,
+          },
+        });
 
-      // Notify requester
-      const notificationMessage = `Your request to join the ride to ${request.destination_name} has been accepted!`;
-      await client.query(
-        `INSERT INTO notifications (notification_id, user_id, ride_id, message)
-         VALUES ($1, $2, $3, $4)`,
-        [notificationId, request.requester_id, ride_id, notificationMessage]
-      );
-    } else if (action === 'reject') {
-      await client.query(
-        `UPDATE ride_requests SET status = 'rejected' WHERE request_id = $1`,
-        [request_id]
-      );
+        // Notify requester using notification service
+        const notificationMessage = `Your request to join the ride to ${rideRequest.ride.destinationName} has been accepted!`;
+        await postNotification(rideRequest.requesterId, notificationMessage, ride_id, tx);
+      } else if (action === "reject") {
+        // Update request status to rejected
+        await tx.rideRequest.update({
+          where: { requestId: request_id },
+          data: { status: "rejected" },
+        });
 
-      const notificationMessage = `Your request to join the ride to ${request.destination_name} was not accepted.`;
-      await client.query(
-        `INSERT INTO notifications (notification_id, user_id, ride_id, message)
-         VALUES ($1, $2, $3, $4)`,
-        [notificationId, request.requester_id, ride_id, notificationMessage]
-      );
-    }
+        // Notify requester using notification service
+        const notificationMessage = `Your request to join the ride to ${rideRequest.ride.destinationName} was not accepted.`;
+        await postNotification(rideRequest.requesterId, notificationMessage, ride_id, tx);
+      }
 
-    await client.query('COMMIT');
-    res.status(200).json({ 
-      success: true, 
-      message: `Request ${action}ed successfully.` 
+      return rideRequest;
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Request ${action}ed successfully.`,
     });
   } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
+    console.error("Update ride request error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message || "Error updating ride request",
+      error: err.message,
+    });
   }
 };
 
 module.exports = {
   createRideRequest,
-  updateRideRequest
+  updateRideRequest,
 };
