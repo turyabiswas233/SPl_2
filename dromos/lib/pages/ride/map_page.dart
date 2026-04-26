@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:dromos/models/ride_model.dart';
+import 'package:dromos/pages/profile/sos_alert_page.dart';
 import 'package:dromos/services/ride_service.dart';
 import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';
@@ -29,6 +30,17 @@ class _MapSampleState extends State<MapSample> {
   late DraggableScrollableController _scrollController;
   late double distance = 0;
   late double duration = 0;
+  bool isLoading = true;
+
+  mp.Position get _currentPosition {
+    final cord = _locationInfo.getLocation();
+    if (cord != null) {
+      return mp.Position(cord.longitude, cord.latitude);
+    } else {
+      // Default to a fallback position, e.g., Dhaka or something
+      return mp.Position(90.4125, 23.8103); // Default to Dhaka
+    }
+  }
 
   Future<void> _onMapCreated(mp.MapboxMap map) async {
     try {
@@ -79,18 +91,22 @@ class _MapSampleState extends State<MapSample> {
 
   Future<void> _drawRoute() async {
     if (widget.ride == null) return;
+    final currentLocation = _locationInfo.getLocation();
+    if (currentLocation == null) return;
     try {
       await LocationInfo.resolveCurrentCity(LocationAccuracy.bestForNavigation);
       RideService rideService = RideService();
       dynamic routes = await rideService.getRoute(
-        startLng: _locationInfo.getLocation()!.longitude,
-        startLat: _locationInfo.getLocation()!.latitude,
+        startLng: currentLocation.longitude,
+        startLat: currentLocation.latitude,
         destLng: widget.ride!.destLng,
         destLat: widget.ride!.destLat,
       );
 
       // 1. Clear previous annotations
-      await polylineAnnotationManager!.deleteAll();
+      if (polylineAnnotationManager != null) {
+        await polylineAnnotationManager!.deleteAll();
+      }
 
       List c = routes['coordinates'] as List;
       debugPrint("DISTANCE_TB ${routes['distance']}");
@@ -209,10 +225,7 @@ class _MapSampleState extends State<MapSample> {
       mapboxMap!.flyTo(
         mp.CameraOptions(
           center: mp.Point(
-            coordinates: mp.Position(
-              _locationInfo.getLocation()!.longitude,
-              _locationInfo.getLocation()!.latitude,
-            ),
+            coordinates: _currentPosition,
           ),
           zoom: 16,
           pitch: 0,
@@ -228,17 +241,50 @@ class _MapSampleState extends State<MapSample> {
     super.initState();
     _scrollController = DraggableScrollableController();
     _startLocationTracking(); // Start listening when the widget loads
+
+    // Show loading screen for at least 5 seconds
+    Timer(const Duration(seconds: 5), () {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
-    _positionStream!.cancel();
+    _positionStream?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        backgroundColor: ConstColor.primaryPurple,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                color: ConstColor.primaryBg,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Loading Map...',
+                style: ConstFonts.semibold(
+                  color: ConstColor.primaryBg,
+                  size: 18,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: ConstColor.primaryPurple,
@@ -269,10 +315,7 @@ class _MapSampleState extends State<MapSample> {
                   },
                   cameraOptions: mp.CameraOptions(
                     center: mp.Point(
-                      coordinates: mp.Position(
-                        _locationInfo.getLocation()!.longitude,
-                        _locationInfo.getLocation()!.latitude,
-                      ),
+                      coordinates: _currentPosition,
                     ),
                     zoom: 16,
                     pitch: 0,
@@ -430,7 +473,7 @@ class _MapSampleState extends State<MapSample> {
                             _buildMetaItem(
                               icon: Icons.people,
                               label: 'Passengers',
-                              value: '${widget.ride!.maxSeats}',
+                                value: '${widget.ride!.maxSeats}',
                             ),
                             _buildMetaItem(
                               icon: Icons.info_outline,
@@ -457,6 +500,21 @@ class _MapSampleState extends State<MapSample> {
       ),
 
       floatingActionButtonLocation: .miniEndTop,
+      floatingActionButton: widget.ride == null
+          ? null
+          : FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SosAlertPage(ride: widget.ride!),
+                  ),
+                );
+              },
+              tooltip: 'SOS Alert',
+              backgroundColor: ConstColor.secondaryColor,
+              child: const Icon(Icons.sos, color: ConstColor.error,),
+            ),
     );
   }
 }

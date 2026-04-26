@@ -209,6 +209,44 @@ class RideService {
     }
   }
 
+  /// Send an SOS alert for a ride.
+  Future<dynamic> createSosAlert({
+    required String rideId,
+    required String alertType,
+    required double latitude,
+    required double longitude,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${Api.url}/sos'),
+        headers: _authHeaders,
+        body: jsonEncode({
+          'ride_id': rideId,
+          'alert_type': alertType,
+          'latitude': latitude,
+          'longitude': longitude,
+        }),
+      );
+
+      debugPrint('createSosAlert status: ${response.statusCode}');
+      debugPrint('createSosAlert body: ${response.body}');
+
+      final body = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (body['success'] == true) {
+          return body;
+        }
+        throw Exception(body['error'] ?? body['message'] ?? 'Failed to create SOS alert');
+      }
+
+      throw Exception(body['error'] ?? body['message'] ?? 'Server error: ${response.statusCode}');
+    } catch (e) {
+      debugPrint('RideService.createSosAlert error: $e');
+      rethrow;
+    }
+  }
+
   /// Request to join a ride.
   Future<dynamic> requestRide(String rideId) async {
     try {
@@ -338,6 +376,12 @@ class RideService {
       );
 
       debugPrint('joinByQr status: ${response.statusCode}');
+      if(response.statusCode != 200) {
+        final body = jsonDecode(response.body);
+        throw Exception(
+          body['message'] ?? 'Server error: ${response.statusCode}',
+        );
+      }
       return jsonDecode(response.body);
     } catch (e) {
       debugPrint('RideService.joinByQr error: $e');
@@ -363,6 +407,12 @@ class RideService {
       );
 
       debugPrint('verifyRide status: ${response.statusCode}');
+      if(response.statusCode != 200) {
+        final body = jsonDecode(response.body);
+        throw Exception(
+          body['message'] ?? 'Server error: ${response.statusCode}',
+        );
+      }
       return jsonDecode(response.body);
     } catch (e) {
       debugPrint('RideService.verifyRide error: $e');

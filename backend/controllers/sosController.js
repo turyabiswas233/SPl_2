@@ -11,7 +11,8 @@ const { postNotifications } = require('./notificationController');
 // @route   POST /api/sos
 // @access  Private
 const createSOSAlert = async (req, res) => {
-  const { ride_id, user_id, alert_type, latitude, longitude } = req.body;
+  const { ride_id, alert_type, latitude, longitude } = req.body;
+  const user_id = req.user.userId; // Assuming user ID is available in req.user
 
   try {
     // Use transaction

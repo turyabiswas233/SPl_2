@@ -121,7 +121,7 @@ const createRide = async (req, res) => {
           destLng: destLng,
           tripQrCode: qrCode,
           tripOtp: otp,
-          preferredGender: preferredGender || "any",
+          preferredGender: preferredGender || "other",
           maxSeats: maxSeats + 1,
           status: "open",
         },
@@ -219,14 +219,14 @@ const createRide = async (req, res) => {
 // @route   GET /api/rides
 // @access  Public
 const getRides = async (req, res) => {
-  const { gender_filter, min_seats, destination } = req.query;
+  const { gender_filter, min_seats } = req.query;
 
   try {
     // Build where clause based on filters
     const where = {};
 
     // Filter by preferred gender
-    if (gender_filter && gender_filter !== "any") {
+    if (gender_filter && gender_filter !== "other") {
       where.OR = [
         { preferredGender: gender_filter },
         { preferredGender: "other" },
@@ -237,14 +237,6 @@ const getRides = async (req, res) => {
     if (min_seats) {
       where.maxSeats = {
         gte: parseInt(min_seats),
-      };
-    }
-
-    // Filter by destination
-    if (destination) {
-      where.destinationName = {
-        contains: destination,
-        mode: "insensitive",
       };
     }
 
@@ -413,32 +405,51 @@ const getRideById = async (req, res) => {
 // @access  Private
 // @query   lng, lat (user's current location)
 const getNearbyRides = async (req, res) => {
-  const { lng, lat } = req.query;
-  const currentUserId = req.user?.userId;
-
-  // Validate coordinates
-  if (!lng || !lat) {
-    return res.status(400).json({
-      success: false,
-      message: "Missing required query parameters: lng, lat",
-    });
-  }
-
-  const userLng = parseFloat(lng);
-  const userLat = parseFloat(lat);
-
-  if (isNaN(userLng) || isNaN(userLat)) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid coordinates format",
-    });
-  }
+  const { gender_filter, min_seats, lng, lat } = req.query;
 
   try {
+    const currentUserId = req.user?.userId;
+
+    // Validate coordinates
+    if (!lng || !lat) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required query parameters: lng, lat",
+      });
+    }
+
+    const userLng = parseFloat(lng);
+    const userLat = parseFloat(lat);
+
+    if (isNaN(userLng) || isNaN(userLat)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid coordinates format",
+      });
+    }
+
+    const where = {};
+
+    // Filter by preferred gender
+    if (gender_filter && gender_filter !== "other") {
+      where.OR = [
+        { preferredGender: gender_filter },
+        { preferredGender: "other" },
+      ];
+    }
+
+    // Filter by minimum seats
+    if (min_seats) {
+      where.maxSeats = {
+        gte: parseInt(min_seats),
+      };
+    }
+
     // Get all open rides
     const openRides = await prisma.ride.findMany({
       where: {
         status: "open",
+        ...where,
         requests: {
           none: {
             requesterId: currentUserId,
@@ -475,12 +486,11 @@ const getNearbyRides = async (req, res) => {
       return R * c; // Distance in meters
     };
 
-    // Filter nearby rides within 500m radius and exclude current user's rides
+    // Filter nearby rides within 2000m radius and exclude current user's rides
     const nearbyRides = openRides
       .filter((ride) => {
         // Exclude rides created by the current user
         if (ride.initiatorId === currentUserId) {
-          console.log(ride.initiatorId, currentUserId);
           return false;
         }
         // Calculate distance from user location to ride start location
@@ -490,8 +500,8 @@ const getNearbyRides = async (req, res) => {
           ride.startLat,
           ride.startLng,
         );
-        // Keep rides within 500m radius
-        return distance <= 500;
+        // Keep rides within 2000m radius
+        return distance <= 2000; // 2000 meters = 2 km
       })
       .map((ride) => ({
         ...ride,
@@ -698,6 +708,8 @@ const startRide = async (req, res) => {
   const { ride_id } = req.params;
   const initiator_id = req.user?.userId;
 
+  console.log("Start ride request for ride_id:", ride_id, "by user:", initiator_id);
+
   if (!initiator_id) {
     return res.status(401).json({
       success: false,
@@ -715,6 +727,7 @@ const startRide = async (req, res) => {
         },
         select: {
           status: true,
+          rideId: true,
         },
       });
 

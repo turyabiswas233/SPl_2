@@ -203,6 +203,13 @@ class _RideChatBottomSheetState extends State<RideChatBottomSheet> {
               ),
               IconButton(
                 onPressed: _fetchMessages,
+                icon: const Icon(Icons.phone, color: ConstColor.primaryPurple),
+                style: IconButton.styleFrom(
+                  backgroundColor: ConstColor.primaryPurple25.withAlpha(50),
+                ),
+              ),
+              IconButton(
+                onPressed: _fetchMessages,
                 icon: const Icon(Icons.refresh_rounded, color: Colors.black45),
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.black.withAlpha(20),

@@ -10,16 +10,22 @@ class CustomInput extends StatefulWidget {
   final TextEditingController controller;
   final Color accentColor;
   final bool isPassword;
+  final TextInputType keyboardType;
+  final String? Function(String?)? validator;
+  final bool enabled;
 
   const CustomInput({
     super.key,
     required this.title,
     required this.hint,
     this.icon,
+    this.enabled = true,
     this.accentColor = ConstColor.primaryPurple,
     required this.initialValue,
     required this.controller,
     this.isPassword = false,
+    this.keyboardType = TextInputType.text,
+    this.validator,
   });
 
   @override
@@ -48,14 +54,18 @@ class _CustomTextFieldState extends State<CustomInput> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardType = widget.isPassword
+        ? TextInputType.visiblePassword
+        : widget.keyboardType != TextInputType.text
+            ? widget.keyboardType
+            : widget.title.toLowerCase() == "email"
+                ? TextInputType.emailAddress
+                : widget.title == "Phone"
+                    ? TextInputType.phone
+                    : TextInputType.text;
+
     return TextFormField(
-      keyboardType: widget.isPassword
-          ? TextInputType.visiblePassword
-          : widget.title.toLowerCase() == "email"
-          ? TextInputType.emailAddress
-          : widget.title == "Phone"
-          ? TextInputType.phone
-          : TextInputType.text,
+      keyboardType: keyboardType,
       autofillHints: widget.isPassword
           ? [AutofillHints.password]
           : widget.title.toLowerCase() == "email"
@@ -65,6 +75,8 @@ class _CustomTextFieldState extends State<CustomInput> {
           : null,
       controller: widget.controller,
       obscureText: _obscureText,
+      enabled: widget.enabled,
+      validator: widget.validator,
       textCapitalization: TextCapitalization.words,
       style: ConstFonts.normal(size: 14, color: pc),
       decoration: InputDecoration(

@@ -652,11 +652,9 @@ class _RideCard extends StatelessWidget {
                         onPressed: ride.curPassengers > 0 ? onStart : onCancel,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: ride.curPassengers > 0
-                              ? Colors.green.shade100
-                              : Colors.red.shade100,
-                          foregroundColor: ride.curPassengers > 0
-                              ? ConstColor.success
-                              : ConstColor.error,
+                              ? Colors.green
+                              : Colors.red,
+                          foregroundColor: ConstColor.secondaryColor,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -675,12 +673,13 @@ class _RideCard extends StatelessWidget {
                       ElevatedButton(
                         onPressed: () {
                           // navigate to map view page
-                          Navigator.push(
+                          Navigator.pushAndRemoveUntil(
                             context,
                             MaterialPageRoute(
                               builder: (context) =>
                                   _InProgressRideView(ride: ride),
                             ),
+                            (route) => false,
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -756,7 +755,7 @@ class _RideCard extends StatelessWidget {
       // Show QR code for initiator
       showDialog(
         context: context,
-        builder: (context) => Dialog(
+        builder: (ctx) => Dialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
@@ -811,7 +810,7 @@ class _RideCard extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(ctx),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ConstColor.primaryPurple,
                       shape: RoundedRectangleBorder(
@@ -847,7 +846,7 @@ class _RideCard extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => SizedBox(
+      builder: (ctx) => SizedBox(
         height: MediaQuery.of(context).size.height * 0.8,
         child: Stack(
           children: [
@@ -859,15 +858,15 @@ class _RideCard extends StatelessWidget {
                     final String? code = barcodes.first.rawValue;
                     debugPrint(code);
                     if (code != null) {
-                      _handleJoinByQr(context, code);
+                      _handleJoinByQr(ctx, code);
                     }
                   }
                 } catch (e) {
                   debugPrint("Error QR Scanner: $e");
                 } finally {
-                  if (!context.mounted) {
+                  if (!ctx.mounted) {
                   } else {
-                    Navigator.pop(context); // Close scanner
+                    Navigator.pop(ctx); // Close scanner
                   }
                 }
               },
@@ -922,7 +921,7 @@ class _RideCard extends StatelessWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) =>
+      builder: (ctx) =>
           const Center(child: CircularProgressIndicator(color: Colors.white)),
     );
 

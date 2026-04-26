@@ -28,11 +28,17 @@ const joinByQr = async (req, res) => {
       });
 
       if (!ride) {
-        throw new Error("Invalid QR code. Ride not found.");
+        return res.status(404).json({
+          success: false,
+          message: "Ride not found for the provided QR code.",
+        });
       }
 
       if (ride.status !== "open") {
-        throw new Error("Ride is not available for joining.");
+        return res.status(400).json({
+          success: false,
+          message: "Ride is not available for joining.",
+        });
       }
 
       // Check if user is already a participant
@@ -47,7 +53,10 @@ const joinByQr = async (req, res) => {
         });
 
         if (!user) {
-          throw new Error("User not found.");
+          return res.status(404).json({
+            success: false,
+            message: "User not found.",
+          });
         }
 
         // return the info
@@ -67,7 +76,10 @@ const joinByQr = async (req, res) => {
 
       // Check if seats are available
       if (ride.participants.length > ride.maxSeats) {
-        throw new Error("No seats available in this ride.");
+        return res.status(400).json({
+          success: false,
+          message: "No seats available in this ride.",
+        });
       }
 
       // Check if user exists
@@ -76,7 +88,10 @@ const joinByQr = async (req, res) => {
       });
 
       if (!user) {
-        throw new Error("User not found.");
+        return res.status(404).json({
+          success: false,
+          message: "User not found.",
+        });
       }
 
       // Create ride participant
@@ -186,8 +201,8 @@ const joinByQr = async (req, res) => {
     console.error("Join by QR error:", err);
     res.status(500).json({
       success: false,
-      message: err.message || "Error joining ride",
-      error: err.message,
+      message: err?.message || "Error joining ride",
+      error: err,
     });
   }
 };

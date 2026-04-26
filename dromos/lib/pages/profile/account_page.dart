@@ -180,9 +180,6 @@ class _AccountPageState extends State<AccountPage> {
               ),
             );
           }),
-          _buildListTile('File a Complain', Icons.report_problem_outlined, () {
-            // Navigate to Complain page
-          }),
           _buildListTile('About Us', Icons.info_outline, () {
             // Navigate to About Us page
           }),
