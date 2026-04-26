@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:dromos/models/ride_model.dart';
 import 'package:dromos/pages/profile/sos_alert_page.dart';
 import 'package:dromos/services/ride_service.dart';
+import 'package:dromos/services/user_service.dart';
 import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';
 import 'package:dromos/utils/location.dart';
@@ -9,6 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 
 class MapSample extends StatefulWidget {
   final RideModel? ride;
@@ -174,6 +178,161 @@ class _MapSampleState extends State<MapSample> {
     int hours = durationInSeconds ~/ 3600;
     int minutes = durationInSeconds ~/ 60 - hours * 60;
     return '${hours.toString().padLeft(2, '0')}h:${minutes.toString().padLeft(2, '0')}m';
+  }
+
+  Future<Map<String, dynamic>?> _fetchFareBreakdown() async {
+    if (widget.ride == null) return null;
+    try {
+      final token = await UserService().token;
+      final response = await http.get(
+        Uri.parse('${Api.url}/rides/${widget.ride!.rideId}/fare-breakdown'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        return body['data'];
+      }
+    } catch (e) {
+      debugPrint('Error fetching fare breakdown: $e');
+    }
+    return null;
+  }
+
+  Widget _buildFareBreakdown(Map<String, dynamic> fareData) {
+    final breakdown = List<Map<String, dynamic>>.from(fareData['breakdown'] ?? []);
+    final totalFare = fareData['totalFare'] ?? 0;
+    final currency = fareData['currency'] ?? 'BDT';
+    final passengerCount = fareData['participantCount'] ?? 1;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(20),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'FARE BREAKDOWN',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.grey,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Total Trip Fare',
+                style: ConstFonts.semibold(size: 14, color: ConstColor.primaryColor),
+              ),
+              Text(
+                '${currency == "BDT" ? "৳" : currency} ${totalFare.toStringAsFixed(2)}',
+                style: ConstFonts.bold(size: 18, color: ConstColor.primaryPurple),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Split across $passengerCount passenger(s)',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+          ),
+          const Divider(height: 24, color: Colors.grey),
+          ...breakdown.map((item) {
+            final isInitiator = item['role'] == 'initiator';
+            final isCurrentUser = item['userId'] == UserService().userId;
+            final name = isCurrentUser ? 'You (${item['name']})' : item['name'];
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: isCurrentUser
+                    ? ConstColor.primaryPurple.withAlpha(30)
+                    : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: isInitiator
+                          ? ConstColor.primaryPurple.withAlpha(50)
+                          : Colors.green.withAlpha(30),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      isInitiator ? Icons.drive_car : Icons.person,
+                      size: 16,
+                      color: isInitiator ? ConstColor.primaryPurple : Colors.green,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: ConstFonts.semibold(size: 11),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          isInitiator ? 'Ride initiator' : 'Passenger',
+                          style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '৳ ${(item['fare'] as num).toStringAsFixed(2)}',
+                    style: ConstFonts.bold(size: 13, color: ConstColor.primaryColor),
+                  ),
+                   ],
+                  ),
+                  const SizedBox(height: 20),
+                  FutureBuilder<Map<String, dynamic?>(
+                    future: _fetchFareBreakdown(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: ConstColor.primaryPurple,
+                          ),
+                        );
+                      }
+                      if (snapshot.hasData && snapshot.data != null) {
+                        return _buildFareBreakdown(snapshot.data!);
+                      }
+                      return Container();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+          }).toList(),
+        ],
+      ),
+    );
   }
 
   Widget _buildMetaItem({

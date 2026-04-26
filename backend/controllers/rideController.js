@@ -13,6 +13,32 @@ const {
   postNotifications,
 } = require("./notificationController");
 const { io } = require("../index");
+const fareService = require("../services/fareService");
+
+/**
+ * @swagger
+ * /api/v1/rides/{ride_id}/fare-breakdown:
+ *   get:
+ *     summary: Get fare breakdown for a shared ride
+ *     tags: [Rides]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: ride_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Ride ID
+ *     responses:
+ *       200:
+ *         description: Fare breakdown details
+ *       404:
+ *         description: Ride not found
+ *       500:
+ *         description: Server error
+ */
 /**
  * @swagger
  * /api/v1/rides:
@@ -303,6 +329,182 @@ const getRides = async (req, res) => {
  *         description: Server error
  */
 
+/**
+ * @swagger
+ * /api/v1/rides/{ride_id}/fare-breakdown:
+ *   get:
+ *     summary: Get fare breakdown for a shared ride
+ *     tags: [Rides]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: ride_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Ride ID
+ *     responses:
+ *       200:
+ *         description: Fare breakdown details
+ *       404:
+ *         description: Ride not found
+ *       500:
+ *         description: Server error
+ */
+
+// @desc    Get fare breakdown for shared ride
+// @route   GET /api/rides/:ride_id/fare-breakdown
+// @access  Private
+const getFareBreakdown = async (req, res) => {
+  const { ride_id } = req.params;
+
+  try {
+    const ride = await prisma.ride.findUnique({
+      where: { rideId: ride_id },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                fullName: true,
+                phoneNumber: true
+              }
+            }
+          }
+        },
+        initiator: {
+          select: {
+            fullName: true,
+            phoneNumber: true
+          }
+        }
+      }
+    });
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ride not found.'
+      });
+    }
+
+    // Get route distance and duration from last known coordinates
+    // or calculate from start to destination
+    const routeDistance = await getRouteDistance(ride.startLat, ride.startLng, ride.destLat, ride.destLng);
+    const routeDuration = await getRouteDuration(ride.startLat, ride.startLng, ride.destLat, ride.destLng);
+
+    const breakdown = await calculateFareBreakdown(ride_id, routeDistance, routeDuration);
+
+    if (!breakdown.success) {
+      throw new Error(breakdown.error);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: breakdown
+    });
+  } catch (err) {
+    console.error('Get fare breakdown error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error calculating fare breakdown',
+      error: err.message
+    });
+  }
+};
+
+/**
+ * Helper function to get route distance using Mapbox API
+ */
+const getRouteDistance = async (startLat, startLng, destLat, destLng) => {
+  try {
+    const mbxClient = require('@mapbox/mapbox-sdk')({ 
+      accessToken: process.env.MAPBOX_ACCESS_TOKEN 
+    });
+    const mbxDirections = require('@mapbox/mapbox-sdk/services/directions');
+    const directions = mbxDirections(mbxClient);
+
+    const response = await directions.getDirections({
+      profile: 'driving',
+      waypoints: [
+        { coordinates: [parseFloat(startLng), parseFloat(startLat)] },
+        { coordinates: [parseFloat(destLng), parseFloat(destLat)] }
+      ],
+      geometries: 'geojson'
+    }).send();
+
+    if (response.statusCode === 200) {
+      return response.body.routes[0].distance; // in meters
+    }
+  } catch (error) {
+    console.error('Error getting route distance:', error);
+    // Fallback: calculate straight-line distance
+    const R = 6371000;
+    const dLat = (destLat - startLat) * (Math.PI / 180);
+    const dLng = (destLng - startLng) * (Math.PI / 180);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(startLat * Math.PI / 180) * Math.cos(destLat * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+  return 0;
+};
+
+/**
+ * Helper function to get route duration using Mapbox API
+ */
+const getRouteDuration = async (startLat, startLng, destLat, destLng) => {
+  try {
+    const mbxClient = require('@mapbox/mapbox-sdk')({ 
+      accessToken: process.env.MAPBOX_ACCESS_TOKEN 
+    });
+    const mbxDirections = require('@mapbox/mapbox-sdk/services/directions');
+    const directions = mbxDirections(mbxClient);
+
+    const response = await directions.getDirections({
+      profile: 'driving',
+      waypoints: [
+        { coordinates: [parseFloat(startLng), parseFloat(startLat)] },
+        { coordinates: [parseFloat(destLng), parseFloat(destLat)] }
+      ],
+      geometries: 'geojson'
+    }).send();
+
+    if (response.statusCode === 200) {
+      return response.body.routes[0].duration; // in seconds
+    }
+  } catch (error) {
+    console.error('Error getting route duration:', error);
+  }
+  return 0;
+};
+
+/**
+ * @swagger
+ * /api/v1/rides/{ride_id}:
+ *   get:
+ *     summary: Get ride details by ID
+ *     tags: [Rides]
+ *     parameters:
+ *       - in: path
+ *         name: ride_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Ride ID
+ *     responses:
+ *       200:
+ *         description: Ride details
+ *       404:
+ *         description: Ride not found
+ *       500:
+ *         description: Server error
+ */
+
 // @desc    Get specific ride details
 // @route   GET /api/rides/:ride_id
 // @access  Public
@@ -518,7 +720,7 @@ const getNearbyRides = async (req, res) => {
         ), // Distance in meters, rounded to 2 decimals
       }));
     const sortedNearbyRides = nearbyRides.sort(
-      (a, b) => a.distance - b.distance,
+      (a, b) => a.distance - b.distance
     );
     const ridesWithTravelDistance = await Promise.all(
       sortedNearbyRides.map(async (ride) => {
@@ -535,12 +737,25 @@ const getNearbyRides = async (req, res) => {
             "&steps=false&geometries=geojson",
           {
             method: "GET",
-          },
+          }
         ).then((res) => res.json());
+
+        const travelDistance = body?.distance || 0;
+        const duration = body?.duration || 0;
+        
+        // Calculate target fare for this ride
+        const distanceKm = travelDistance / 1000;
+        const durationMin = duration / 60;
+        const baseFare = 20;
+        const perKmRate = 8;
+        const perMinRate = 0.5;
+        const totalFare = baseFare + (distanceKm * perKmRate) + (durationMin * perMinRate);
+        const targetFare = Number((totalFare / ride.maxSeats).toFixed(2));
 
         return {
           ...ride,
-          travelDistance: body?.distance, // Distance in meters
+          travelDistance,
+          targetFare,
         };
       }),
     );
@@ -904,6 +1119,7 @@ module.exports = {
   createRide,
   getRides,
   getRideById,
+  getFareBreakdown,
   getNearbyRides,
   startRide,
   completeRide,

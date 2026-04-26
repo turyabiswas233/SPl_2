@@ -117,6 +117,8 @@ model Ride {
   tripOtp              String @db.Char(6)
   maxSeats             Int
   status               RideStatus @default(open)
+  totalFare            Float?     // Total fare for the ride (calculated)
+  currency             String @default("BDT")
   createdAt            DateTime @default(now()) @db.Timestamptz()
 
   // Relations
@@ -142,6 +144,11 @@ model RideParticipant {
   
   meetingLat           Float?
   meetingLng           Float?
+  pickupLat            Float?
+  pickupLng            Float?
+  dropoffLat           Float?
+  dropoffLng           Float?
+  fare                 Float?  // Individual fare for this participant
   
   hasMetBoolean        Boolean @default(false)
   metAt                DateTime? @db.Timestamptz()

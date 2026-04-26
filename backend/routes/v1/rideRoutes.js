@@ -4,10 +4,11 @@ const {
   createRide, 
   getRides, 
   getRideById, 
+  getFareBreakdown,
   getNearbyRides,
   startRide,
-  completeRide,
-  cancelRide,
+  completeRide, 
+  cancelRide, 
 } = require('../../controllers/rideController');
 const { validateRideCreation, validateUUID } = require('../../middleware/validators');
 const asyncHandler = require('../../middleware/asyncHandler');
@@ -24,6 +25,9 @@ router.get('/nearby', protect, asyncHandler(getNearbyRides));
 
 // @route   GET /api/v1/rides/:ride_id
 router.get('/:ride_id', validateUUID('ride_id'), asyncHandler(getRideById));
+
+// @route   GET /api/v1/rides/:ride_id/fare-breakdown
+router.get('/:ride_id/fare-breakdown', protect, validateUUID('ride_id'), asyncHandler(getFareBreakdown));
 
 // @route   PATCH /api/v1/rides/:ride_id/start
 router.patch('/:ride_id/start', protect, validateUUID('ride_id'), asyncHandler(startRide));

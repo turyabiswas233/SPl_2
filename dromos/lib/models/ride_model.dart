@@ -24,6 +24,8 @@ class RideModel {
   final String status;
   final String preferredGender;
   final DateTime createdAt;
+  final double? totalFare;  // New: Total fare for the ride
+  final String? currency;   // New: Currency code
 
   RideModel({
     this.rideId = '',
@@ -42,6 +44,8 @@ class RideModel {
     this.status = 'open',
     this.preferredGender = 'other',
     DateTime? createdAt,
+    this.totalFare,
+    this.currency,
   }) : createdAt = createdAt ?? DateTime.now();
 
   factory RideModel.fromJson(Map<String, dynamic> json) {
@@ -65,6 +69,8 @@ class RideModel {
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
+      totalFare: (json['totalFare'] ?? 0).toDouble(),
+      currency: json['currency'] ?? 'BDT',
     );
   }
 
@@ -84,6 +90,8 @@ class RideModel {
       'status': status,
       'preferredGender': preferredGender,
       'created_at': createdAt.toIso8601String(),
+      'totalFare': totalFare,
+      'currency': currency,
     };
   }
 

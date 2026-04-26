@@ -4,14 +4,15 @@ class NearbyRideModel {
   final double startLat;
   final double startLng;
   final String destinationName;
-  final String status;
-  final int maxSeats;
-  final int currentPassengers;
   final double distance;
   final double travellingDistance;
+  final double targetFare;  // New: Target fare for this ride
+  final int maxSeats;
+  final int currentPassengers;
   final int availableSeats;
   final String initiatorName;
   final String initiatorPhone;
+  final String status;  // Add status field
 
   NearbyRideModel({
     required this.rideId,
@@ -21,6 +22,7 @@ class NearbyRideModel {
     required this.destinationName,
     required this.distance,
     this.travellingDistance = 0,
+    this.targetFare = 0,
     required this.status,
     required this.maxSeats,
     required this.currentPassengers,
@@ -38,6 +40,7 @@ class NearbyRideModel {
       destinationName: json['destinationName'] ?? '',
       distance: json['distance'] != null ? (json['distance'] as num).toDouble() : 0.0,
       travellingDistance: json['travelDistance'] != null ? (json['travelDistance'] as num).toDouble() : 0.0,
+      targetFare: json['targetFare'] != null ? (json['targetFare'] as num).toDouble() : 0.0,
       status: json['status'] ?? 'open',
       maxSeats: json['maxSeats'] ?? 4,
       currentPassengers: json['current_passengers'] ?? 0,
@@ -46,6 +49,26 @@ class NearbyRideModel {
       initiatorPhone: json['initiatorPhone'] ?? '',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'rideId': rideId,
+      'startLocation': startLocation,
+      'startLat': startLat,
+      'startLng': startLng,
+      'destinationName': destinationName,
+      'distance': distance,
+      'travelDistance': travellingDistance,
+      'targetFare': targetFare,
+      'status': status,
+      'maxSeats': maxSeats,
+      'current_passengers': currentPassengers,
+      'available_seats': availableSeats,
+      'initiator_name': initiatorName,
+      'initiator_phone': initiatorPhone,
+    };
+  }
+}
 
   Map<String, dynamic> toJson() {
     return {
