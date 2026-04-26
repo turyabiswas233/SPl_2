@@ -1,3 +1,5 @@
+import 'package:dromos/screens/payment/payment_history_screen.dart';
+import 'package:dromos/screens/payment/payment_success_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:dromos/services/ride_service.dart';
 import 'package:dromos/services/stripe_payment_service.dart';
@@ -202,10 +204,13 @@ class PaymentScreenState extends State<PaymentScreen> {
     setState(() => _isLoading = false);
 
     if (paymentResult['success'] == true) {
-      Navigator.pushReplacementNamed(
+      Navigator.pushAndRemoveUntil(
         context,
-        '/payment/success',
-        arguments: {'orderId': initiateResult['orderId']},
+        MaterialPageRoute(
+          builder: (context) =>
+              PaymentSuccessScreen(orderId: initiateResult['orderId']),
+        ),
+        (Route<dynamic> route) => route.isFirst,
       );
       return;
     }
@@ -592,8 +597,13 @@ class PaymentScreenState extends State<PaymentScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () =>
-                        Navigator.pushNamed(context, '/payment/history'),
+                    onPressed: () => Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PaymentHistoryScreen(),
+                      ),
+                      (Route<dynamic> route) => route.isFirst,
+                    ),
                     icon: const Icon(Icons.history),
                     label: const Text('View Payment History'),
                     style: OutlinedButton.styleFrom(

@@ -146,6 +146,7 @@ class PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                                 icon: const Icon(Icons.arrow_back),
                                 label: const Text('Back'),
                                 style: OutlinedButton.styleFrom(
+                                  overlayColor: accentColor.withAlpha(30),
                                   padding: const EdgeInsets.symmetric(vertical: 14),
                                   side: BorderSide(color: pc),
                                 ),
@@ -161,13 +162,14 @@ class PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                                     (route) => false,
                                   );
                                 },
-                                icon: const Icon(Icons.home),
-                                label: const Text('Home'),
+                                icon: const Icon(Icons.home, color: ConstColor.secondaryColor),
+                                label: const Text('Home', style: TextStyle(color: ConstColor.secondaryColor),),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: accentColor,
+                                  overlayColor: pbc.withAlpha(50),
                                   padding: const EdgeInsets.symmetric(vertical: 14),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(99),
                                   ),
                                 ),
                               ),
@@ -190,7 +192,7 @@ class PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
           Text(
             label,
             style: ConstFonts.normal(
-              size: 14,
+              size: 12,
               color: Colors.grey.shade600,
             ),
           ),
@@ -198,7 +200,7 @@ class PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
             child: Text(
               value,
               style: ConstFonts.bold(
-                size: 16,
+                size: 10,
                 color: valueColor ?? ConstColor.primaryColor,
               ),
               textAlign: TextAlign.end,

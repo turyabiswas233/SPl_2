@@ -197,8 +197,8 @@ class _ActivityPageState extends State<ActivityPage>
   List<RideModel> get _pastRides => _rides
       .where(
         (r) =>
-            r.status.toLowerCase() == 'cancelled' ||
-            r.status.toLowerCase() == 'completed',
+            r.status.toLowerCase() == RideStatus.cancelled ||
+            r.status.toLowerCase() == RideStatus.completed,
       )
       .toList();
 
@@ -586,24 +586,9 @@ class _RideCard extends StatelessWidget {
           if (isActive) ...[
             const SizedBox(height: 16),
             if (ride.isOpen)
-              GridView(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount:
-                      (ride.initiatorId == currentUserId ||
-                          !_isInitiator && ride.status == 'in_progress'
-                      ? 3
-                      : 2),
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio:
-                      ride.initiatorId == currentUserId ||
-                          !_isInitiator && ride.status == 'in_progress'
-                      ? 2.5
-                      : 4,
-                ),
-                shrinkWrap: true,
-
-                physics: const NeverScrollableScrollPhysics(),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
                 children: [
                   ElevatedButton(
                     onPressed: () => _showChatBottomSheet(
@@ -616,9 +601,14 @@ class _RideCard extends StatelessWidget {
                       foregroundColor: Colors.blue,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(99),
                       ),
-                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 34),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     child: const Text(
                       'Chat',
@@ -631,13 +621,18 @@ class _RideCard extends StatelessWidget {
                   ElevatedButton(
                     onPressed: () => _showRideDetails(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: ConstColor.primaryPurple25,
-                      foregroundColor: ConstColor.primaryPurple,
+                      backgroundColor: Colors.blueGrey.shade100,
+                      foregroundColor: Colors.grey.shade900,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(99),
                       ),
-                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 34),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     child: Text(
                       _isInitiator ? 'QR Code' : 'Scan QR',
@@ -648,58 +643,67 @@ class _RideCard extends StatelessWidget {
                     ),
                   ),
                   if (_isInitiator)
-                    if (ride.status == ('open'))
-                      ElevatedButton(
-                        onPressed: ride.curPassengers > 0 ? onStart : onCancel,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: ride.curPassengers > 0
-                              ? Colors.green
-                              : Colors.red,
-                          foregroundColor: ConstColor.secondaryColor,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: EdgeInsets.zero,
-                        ),
-                        child: Text(
-                          ride.curPassengers > 0 ? 'Start' : 'Cancel',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      )
-                    else
-                      ElevatedButton(
-                        onPressed: () {
-                          // navigate to map view page
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  _InProgressRideView(ride: ride),
+                    if (ride.status == RideStatus.open)
+                      if (ride.curPassengers > 0)
+                        ElevatedButton(
+                          onPressed: onStart,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: ConstColor.secondaryColor,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(99),
                             ),
-                            (route) => false,
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade200,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            minimumSize: const Size(0, 34),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          padding: EdgeInsets.zero,
-                        ),
-                        child: Text(
-                          'Live',
-                          style: ConstFonts.normal(
-                            size: 12,
-                            color: Colors.green.shade800,
+                          child: const Text(
+                            'Start',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        )
+                      else
+                        ElevatedButton(
+                          onPressed: () {
+                            // navigate to map view page
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    _InProgressRideView(ride: ride),
+                              ),
+                              (route) => false,
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade200,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            minimumSize: const Size(0, 34),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            'Live',
+                            style: ConstFonts.normal(
+                              size: 12,
+                              color: Colors.green.shade800,
+                            ),
                           ),
                         ),
-                      ),
-                  if (!_isInitiator && ride.status == 'in_progress')
+                  if (ride.status == RideStatus.inProgress)
                     ElevatedButton(
                       onPressed: () {
                         // navigate to map view page
@@ -715,9 +719,14 @@ class _RideCard extends StatelessWidget {
                         backgroundColor: Colors.green.shade200,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(99),
                         ),
-                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 34),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       child: Text(
                         'Live',
@@ -727,7 +736,7 @@ class _RideCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                  if (ride.status == 'completed')
+                  if (ride.status == RideStatus.completed)
                     ElevatedButton(
                       onPressed: () {
                         Navigator.push(
@@ -752,7 +761,12 @@ class _RideCard extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 34),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       child: const Text(
                         'Pay Share',
@@ -761,6 +775,25 @@ class _RideCard extends StatelessWidget {
                           fontSize: 12,
                         ),
                       ),
+                    ),
+                  if (_isInitiator && ride.status != RideStatus.completed)
+                    ElevatedButton(
+                      onPressed: onCancel,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.shade100,
+                        foregroundColor: Colors.red.shade700,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        minimumSize: const Size(36, 34),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Icon(Icons.close_rounded, size: 18),
                     ),
                 ],
               ),

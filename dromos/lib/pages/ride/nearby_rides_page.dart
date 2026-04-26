@@ -181,7 +181,7 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                initialValue: _genderFilter?? 'other',
+                initialValue: _genderFilter ?? 'other',
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(99.0),
@@ -250,7 +250,10 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
                       ),
                       child: Text(
                         'Clear Filters',
-                        style: ConstFonts.semibold(size: 14, color: ConstColor.primaryPurple),
+                        style: ConstFonts.semibold(
+                          size: 14,
+                          color: ConstColor.primaryPurple,
+                        ),
                       ),
                     ),
                   ),
@@ -274,7 +277,10 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
                       ),
                       child: Text(
                         'Apply Filters',
-                        style: ConstFonts.semibold(size: 14, color: Colors.white),
+                        style: ConstFonts.semibold(
+                          size: 14,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -296,14 +302,12 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
     return Scaffold(
       backgroundColor: ConstColor.primaryBg,
       appBar: AppBar(
-        backgroundColor: ConstColor.primaryPurple,
+        backgroundColor: Colors.transparent,
+        foregroundColor: ConstColor.primaryColor,
         title: const Text(
           'Nearby Rides',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          textAlign: TextAlign.center,
         ),
         actions: [
           IconButton(
@@ -394,7 +398,7 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
               backgroundColor: ConstColor.primaryPurple,
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(99),
               ),
             ),
             onPressed: _fetchNearbyRides,

@@ -62,7 +62,7 @@ class _AccountPageState extends State<AccountPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Account'),
-        backgroundColor: ConstColor.primaryPurple,
+        backgroundColor: Colors.transparent,
         toolbarHeight: 0.0,
         foregroundColor: ConstColor.primaryColor,
       ),
