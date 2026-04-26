@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:dromos/services/payment_service.dart';
+import 'package:dromos/services/stripe_payment_service.dart';
 import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';
 
@@ -24,7 +24,7 @@ class PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
   }
 
   Future<void> _fetchPaymentStatus() async {
-    final result = await PaymentService.getPaymentStatus(widget.orderId);
+    final result = await StripePaymentService.getPaymentStatus(widget.orderId);
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -93,7 +93,7 @@ class PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Your payment has been processed successfully.',
+                          'Your payment has been processed successfully with Stripe.',
                           style: ConstFonts.normal(
                             size: 16,
                             color: Colors.grey.shade600,
@@ -111,7 +111,7 @@ class PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                           child: Column(
                             children: [
                               _buildDetailRow('Order ID', _paymentData?['orderId'] ?? widget.orderId),
-                              _buildDetailRow('Amount', PaymentService.formatAmount(
+                              _buildDetailRow('Amount', StripePaymentService.formatAmount(
                                 _paymentData?['amount']?.toDouble() ?? 0.0,
                               )),
                               _buildDetailRow('Status', 'Completed',
@@ -122,10 +122,14 @@ class PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                                     _paymentData?['transactionId'] ?? 'N/A'),
                               if (_paymentData?['paymentMethod'] != null)
                                 _buildDetailRow('Payment Method',
-                                    _paymentData?['paymentMethod'] ?? 'N/A'),
+                                    _paymentData?['paymentMethod'] ?? 'Card'),
+                              _buildDetailRow(
+                                  'Payment Gateway',
+                                  'Stripe',
+                                  valueColor: Colors.blue.shade700),
                               _buildDetailRow(
                                   'Date',
-                                  PaymentService.formatDate(
+                                  StripePaymentService.formatDate(
                                     _paymentData?['paymentTime'] != null
                                         ? DateTime.tryParse(_paymentData!['paymentTime'])
                                         : null,

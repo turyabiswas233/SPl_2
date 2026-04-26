@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 class PaymentUtils {
-  // AamarPay colors
-  static const Color aamarPayGreen = Color(0xFF00796B);
-  static const Color aamarPayDarkGreen = Color(0xFF00574B);
-  static const Color aamarPayTeal = Color(0xFF00ACC1);
+  // Stripe colors
+  static const Color stripeBlue = Color(0xFF0A66C2);
+  static const Color stripeLightBlue = Color(0xFF635BFF);
+  static const Color stripeDarkBlue = Color(0xFF0066B2);
 
   // Payment status colors
   static const Color statusCompleted = Colors.green;
@@ -12,6 +12,7 @@ class PaymentUtils {
   static const Color statusProcessing = Colors.blue;
   static const Color statusFailed = Colors.red;
   static const Color statusCancelled = Colors.grey;
+  static const Color statusRefunded = Colors.purple;
 
   // Payment types
   static const String typeRideFare = 'ride_fare';
@@ -22,20 +23,15 @@ class PaymentUtils {
   static const String currencyBdt = 'BDT';
   static const String currencyUsd = 'USD';
 
-  // Payment methods
+  // Payment methods (Stripe supported)
   static const String methodCard = 'card';
-  static const String methodQr = 'qr';
-  static const String methodNfc = 'nfc';
-  static const String methodBank = 'bank';
+  static const String methodWallet = 'wallet';
+  static const String methodBankAccount = 'bank_account';
+  static const String methodUpi = 'upi'; // For Indian users
 
-  // AamarPay endpoints
-  static const String sandboxUrl = 'https://sandbox.aamarpay.com';
-  static const String liveUrl = 'https://secure.aamarpay.com';
-
-  // Return URLs (should match backend config)
-  static const String returnUrlSuccess = '/payment/success';
-  static const String returnUrlCancel = '/payment/cancel';
-  static const String returnUrlFailed = '/payment/failed';
+  // Stripe environment
+  static const String sandboxUrl = 'https://sandbox.stripe.com';
+  static const String liveUrl = 'https://stripe.com';
 
   // Validator patterns
   static final RegExp phoneRegex = RegExp(r'^\+?[0-9]{10,15}$');
@@ -79,4 +75,40 @@ class PaymentUtils {
     final last4 = cardNumber.substring(cardNumber.length - 4);
     return '**** **** **** $last4';
   }
+
+  /// Get payment status display text
+  static String getStatusText(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'Completed';
+      case 'pending':
+        return 'Pending';
+      case 'processing':
+        return 'Processing';
+      case 'failed':
+        return 'Failed';
+      case 'cancelled':
+        return 'Cancelled';
+      case 'refunded':
+        return 'Refunded';
+      default:
+        return status;
+    }
+  }
+
+  /// Get error message for Stripe errors
+  static String getStripeErrorMessage(String errorCode) {
+    const Map<String, String> errorMessages = {
+      'card_declined': 'Your card was declined. Please use a different payment method.',
+      'expired_card': 'Your card has expired. Please use a different card.',
+      'processing_error': 'An error occurred while processing your payment. Please try again.',
+      'authentication_required': 'Your payment requires authentication. Please try again.',
+      'insufficient_funds': 'Your card has insufficient funds. Please use a different payment method.',
+      'incorrect_cvc': 'The CVC code is incorrect. Please try again.',
+      'lost_card': 'This card is flagged as lost. Please use a different payment method.',
+      'stolen_card': 'This card is flagged as stolen. Please use a different payment method.',
+    };
+    return errorMessages[errorCode] ?? 'Payment failed. Please try again.';
+  }
 }
+

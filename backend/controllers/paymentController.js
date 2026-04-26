@@ -1,5 +1,5 @@
 const asyncHandler = require("../middleware/asyncHandler");
-const aamarpay = require("../utils/aamarpay");
+const stripe = require("../utils/stripe");
 const prisma = require("../db/prismaClient");
 const { v4: uuidv4 } = require("uuid");
 const mapboxClient = require("@mapbox/mapbox-sdk");
@@ -93,39 +93,36 @@ exports.initiatePayment = asyncHandler(async (req, res) => {
     });
   }
 
-  if (!customerPhone) {
-    return res.status(400).json({
-      success: false,
-      error: "Customer phone is required",
-    });
-  }
-
   const orderId = `DRM-${Date.now()}-${uuidv4().substring(0, 8)}`;
-  const userId = req.user ? req.user.user_id : null;
+  const userId = req.user ? req.user.userId : null;
 
   try {
     const paymentData = {
       amount: parseFloat(amount),
+      currency: "usd",
       orderId: orderId,
-      customerName: customerName || req.user?.full_name || "Dromos User",
-      customerEmail: customerEmail || req.user?.email || "user@dromos.com",
-      customerPhone: customerPhone,
-      customerAddress: req.user?.address || "Bangladesh",
       description: description || "Payment for Dromos ride",
-      returnUrl: `${process.env.FRONTEND_URL}/payment/success`,
-      cancelUrl: `${process.env.FRONTEND_URL}/payment/cancel`,
+      metadata: {
+        userId: userId,
+        rideId: rideId,
+        customerName: customerName || req.user?.full_name || "Dromos User",
+        customerEmail: customerEmail || req.user?.email || "user@dromos.com",
+        customerPhone: customerPhone,
+      },
     };
 
-    const paymentResult = await aamarpay.initiatePayment(paymentData);
+    // Create payment intent with Stripe
+    const paymentResult = await stripe.createPaymentIntent(paymentData);
 
     if (!paymentResult.success) {
       return res.status(400).json({
         success: false,
         error: paymentResult.error,
-        errorCode: paymentResult.errorCode,
+        code: paymentResult.code,
       });
     }
 
+    // Store payment in database
     const payment = await prisma.payment.create({
       data: {
         orderId: orderId,
@@ -133,10 +130,10 @@ exports.initiatePayment = asyncHandler(async (req, res) => {
         rideId: rideId,
         amount: parseFloat(amount),
         status: "pending",
-        customerName: paymentData.customerName,
-        customerEmail: paymentData.customerEmail,
-        customerPhone: paymentData.customerPhone,
-        transactionId: paymentResult.transactionId,
+        customerName: paymentData.metadata.customerName,
+        customerEmail: paymentData.metadata.customerEmail,
+        customerPhone: paymentData.metadata.customerPhone,
+        transactionId: paymentResult.paymentIntentId,
       },
     });
 
@@ -144,7 +141,9 @@ exports.initiatePayment = asyncHandler(async (req, res) => {
       success: true,
       data: {
         orderId: orderId,
-        paymentUrl: paymentResult.paymentUrl,
+        clientSecret: paymentResult.clientSecret,
+        publishableKey: paymentResult.publishableKey,
+        paymentIntentId: paymentResult.paymentIntentId,
         amount: amount,
         currency: "BDT",
       },
@@ -159,112 +158,102 @@ exports.initiatePayment = asyncHandler(async (req, res) => {
 });
 
 exports.paymentCallback = asyncHandler(async (req, res) => {
-  const callbackData = req.body;
+  const signature = req.headers["stripe-signature"];
+  const body = req.body;
 
-  console.log("AamarPay Callback:", callbackData);
-
-  const { order_id, amount, payment_status, pg_txnid, card_type, store_id } =
-    callbackData;
-
-  if (!order_id) {
+  if (!signature) {
     return res.status(400).json({
       success: false,
-      error: "Order ID not found",
+      error: "Missing Stripe signature",
     });
   }
 
-  const payment = await prisma.payment.findUnique({
-    where: { orderId: order_id },
-  });
+  const verification = stripe.verifyWebhookSignature(body, signature);
 
-  if (!payment) {
-    console.error("Payment not found for order:", order_id);
-    return res.status(404).json({
+  if (!verification.valid) {
+    console.error("Invalid webhook signature:", verification.error);
+    return res.status(400).json({
       success: false,
-      error: "Payment record not found",
+      error: "Invalid signature",
     });
   }
 
-  const isValidSignature = aamarpay.verifyCallback({
-    store_id,
-    order_id,
-    amount,
-    payment_status,
-    signature_key: callbackData.signature_key,
-  });
+  const event = verification.event;
+  console.log("Stripe Webhook Event:", event.type);
 
-  if (!isValidSignature && payment_status !== "failed") {
-    console.error("Invalid signature for order:", order_id);
+  try {
+    switch (event.type) {
+      case "payment_intent.succeeded": {
+        const paymentIntent = event.data.object;
+        const orderId = paymentIntent.metadata?.orderId;
+
+        if (orderId) {
+          await prisma.payment.updateMany({
+            where: { orderId: orderId },
+            data: {
+              status: "completed",
+              transactionId: paymentIntent.id,
+              paymentMethod: paymentIntent.payment_method_types?.[0],
+              paymentTime: new Date(),
+            },
+          });
+        }
+        break;
+      }
+
+      case "payment_intent.payment_failed": {
+        const paymentIntent = event.data.object;
+        const orderId = paymentIntent.metadata?.orderId;
+
+        if (orderId) {
+          await prisma.payment.updateMany({
+            where: { orderId: orderId },
+            data: {
+              status: "failed",
+              transactionId: paymentIntent.id,
+            },
+          });
+        }
+        break;
+      }
+
+      case "charge.refunded": {
+        const charge = event.data.object;
+        const paymentIntentId = charge.payment_intent;
+
+        const payment = await prisma.payment.findFirst({
+          where: { transactionId: paymentIntentId },
+        });
+
+        if (payment) {
+          await prisma.payment.update({
+            where: { paymentId: payment.paymentId },
+            data: {
+              status: "refunded",
+            },
+          });
+        }
+        break;
+      }
+
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
+    }
+
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error("Error processing webhook:", error);
+    res.status(500).json({
+      success: false,
+      error: "Webhook processing error",
+    });
   }
-
-  let newStatus;
-  switch (payment_status?.toLowerCase()) {
-    case "success":
-      newStatus = "completed";
-      payment.paymentTime = new Date();
-      break;
-    case "failed":
-      newStatus = "failed";
-      break;
-    case "cancelled":
-      newStatus = "cancelled";
-      break;
-    case "pending":
-      newStatus = "processing";
-      break;
-    default:
-      newStatus = "pending";
-  }
-
-  await prisma.payment.update({
-    where: { orderId: order_id },
-    data: {
-      status: newStatus,
-      paymentStatus: payment_status,
-      transactionId: pg_txnid || payment.transactionId,
-      paymentMethod: card_type || callbackData.card_brand,
-      aamarPayResponse: callbackData,
-      paymentTime: newStatus === "completed" ? new Date() : payment.paymentTime,
-    },
-  });
-
-  if (payment_status === "Success") {
-    return res.send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <script>
-            window.location.href = "${process.env.FRONTEND_URL}/payment/success?order_id=${order_id}&status=success";
-          </script>
-        </head>
-        <body>
-          <p>Redirecting to success page...</p>
-        </body>
-      </html>
-    `);
-  } else if (payment_status === "failed") {
-    return res.send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <script>
-            window.location.href = "${process.env.FRONTEND_URL}/payment/failed?order_id=${order_id}&status=failed";
-          </script>
-        </head>
-        <body>
-          <p>Redirecting to failed page...</p>
-        </body>
-      </html>
-    `);
-  }
-
-  res.status(200).json({ success: true });
 });
 
 exports.getPaymentStatus = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
 
-  const payment = await prisma.payment.findUnique({
+  let payment = await prisma.payment.findUnique({
     where: { orderId: orderId },
   });
 
@@ -275,12 +264,20 @@ exports.getPaymentStatus = asyncHandler(async (req, res) => {
     });
   }
 
-  if (payment.status === "completed") {
-    const verification = await aamarpay.verifyPayment(payment.transactionId);
-    await prisma.payment.update({
-      where: { orderId: orderId },
-      data: { aamarPayResponse: verification },
-    });
+  // Verify status with Stripe if payment intent ID exists
+  if (payment.transactionId) {
+    const stripeData = await stripe.retrievePaymentIntent(payment.transactionId);
+    if (stripeData.success) {
+      const mappedStatus = stripe.mapPaymentStatus(stripeData.data.status);
+      
+      // Update payment status if it has changed
+      if (mappedStatus !== payment.status) {
+        payment = await prisma.payment.update({
+          where: { orderId: orderId },
+          data: { status: mappedStatus },
+        });
+      }
+    }
   }
 
   res.status(200).json({
@@ -292,6 +289,7 @@ exports.getPaymentStatus = asyncHandler(async (req, res) => {
       transactionId: payment.transactionId,
       paymentTime: payment.paymentTime,
       paymentMethod: payment.paymentMethod,
+      currency: "BDT",
     },
   });
 });
@@ -338,7 +336,7 @@ exports.getUserPayments = asyncHandler(async (req, res) => {
 exports.verifyPayment = asyncHandler(async (req, res) => {
   const { orderId } = req.body;
 
-  const payment = await prisma.payment.findUnique({
+  let payment = await prisma.payment.findUnique({
     where: { orderId: orderId },
   });
 
@@ -356,27 +354,37 @@ exports.verifyPayment = asyncHandler(async (req, res) => {
     });
   }
 
-  const verification = await aamarpay.verifyPayment(payment.transactionId);
+  // Retrieve payment intent from Stripe
+  const verification = await stripe.retrievePaymentIntent(payment.transactionId);
 
-  if (
-    verification &&
-    (verification.status === "Success" || verification.status === "success")
-  ) {
-    await prisma.payment.update({
-      where: { orderId: orderId },
+  if (verification.success) {
+    const mappedStatus = stripe.mapPaymentStatus(verification.data.status);
+
+    if (mappedStatus !== payment.status) {
+      payment = await prisma.payment.update({
+        where: { orderId: orderId },
+        data: {
+          status: mappedStatus,
+          paymentTime:
+            mappedStatus === "completed" ? new Date() : payment.paymentTime,
+        },
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
       data: {
-        status: "completed",
-        paymentStatus: verification.status,
-        paymentTime: verification.date
-          ? new Date(verification.date)
-          : new Date(),
-        aamarPayResponse: verification,
+        orderId: payment.orderId,
+        status: payment.status,
+        amount: payment.amount,
+        transactionId: payment.transactionId,
+        paymentTime: payment.paymentTime,
       },
     });
+  } else {
+    res.status(400).json({
+      success: false,
+      error: verification.error,
+    });
   }
-
-  res.status(200).json({
-    success: true,
-    data: payment,
-  });
 });

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:dromos/screens/payment/payment_webview_screen.dart';
-import 'package:dromos/screens/payment/payment_history_screen.dart';
-import 'package:dromos/services/payment_service.dart';
-import 'package:dromos/services/user_service.dart';
 import 'package:dromos/services/ride_service.dart';
+import 'package:dromos/services/stripe_payment_service.dart';
+import 'package:dromos/services/user_service.dart';
 import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';
 
@@ -38,46 +36,68 @@ class PaymentScreenState extends State<PaymentScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
 
+  final UserService _userService = UserService();
+  final RideService _rideService = RideService();
+
   bool _isLoading = false;
   bool _isEstimating = false;
   bool _isCheckingRide = false;
+  bool _isInitiator = false;
   double? _estimatedCost;
   double? _paymentAmount;
-  bool _isInitiator = false;
   String? _initiatorName;
-
-  final UserService _userService = UserService();
-  final RideService _rideService = RideService();
 
   @override
   void initState() {
     super.initState();
     if (widget.amount != null) {
       _amountController.text = widget.amount!.toStringAsFixed(2);
-    } else if (widget.startLat != null &&
+    }
+    StripePaymentService.initializeStripe();
+    _loadUserData();
+
+    if (widget.startLat != null &&
         widget.startLng != null &&
         widget.destLat != null &&
         widget.destLng != null) {
       _estimateCost();
     }
+
     if (widget.rideId != null) {
       _checkIfInitiator();
     }
-    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = _userService.currentUser;
+    if (!mounted) return;
+
+    setState(() {
+      if (user.fullName.isNotEmpty) {
+        _nameController.text = user.fullName;
+      }
+      if (user.email.isNotEmpty) {
+        _emailController.text = user.email;
+      }
+      if (user.phoneNumber.isNotEmpty) {
+        _phoneController.text = user.phoneNumber;
+      }
+    });
   }
 
   Future<void> _checkIfInitiator() async {
-    if (widget.rideId == null) return;
+    final rideId = widget.rideId;
+    if (rideId == null) return;
 
     setState(() => _isCheckingRide = true);
     try {
-      final ride = await _rideService.fetchRide(widget.rideId!);
-      if (ride != null && mounted) {
-        setState(() {
-          _isInitiator = ride.initiatorId == _userService.userId;
-          _initiatorName = ride.initiatorName;
-        });
-      }
+      final ride = await _rideService.fetchRide(rideId);
+      if (!mounted) return;
+
+      setState(() {
+        _isInitiator = ride != null && ride.initiatorId == _userService.userId;
+        _initiatorName = ride?.initiatorName;
+      });
     } catch (e) {
       debugPrint('Error checking ride: $e');
     } finally {
@@ -86,46 +106,43 @@ class PaymentScreenState extends State<PaymentScreen> {
   }
 
   Future<void> _estimateCost() async {
-    if (widget.startLat == null ||
-        widget.startLng == null ||
-        widget.destLat == null ||
-        widget.destLng == null) {
+    final startLat = widget.startLat;
+    final startLng = widget.startLng;
+    final destLat = widget.destLat;
+    final destLng = widget.destLng;
+
+    if (startLat == null ||
+        startLng == null ||
+        destLat == null ||
+        destLng == null) {
       return;
     }
 
     setState(() => _isEstimating = true);
     try {
-      final result = await PaymentService.estimateCost(
-        startLng: widget.startLng!,
-        startLat: widget.startLat!,
-        destLng: widget.destLng!,
-        destLat: widget.destLat!,
+      final result = await StripePaymentService.estimateCost(
+        startLat: startLat,
+        startLng: startLng,
+        destLat: destLat,
+        destLng: destLng,
       );
 
-      if (result['success'] == true && mounted) {
+      if (!mounted) return;
+
+      if (result['success'] == true) {
         setState(() {
-          _estimatedCost = result['estimatedCost'];
-          _paymentAmount = result['paymentAmount'];
-          _amountController.text = _paymentAmount!.toStringAsFixed(2);
+          _estimatedCost = (result['estimatedCost'] as num?)?.toDouble();
+          _paymentAmount = (result['paymentAmount'] as num?)?.toDouble();
+          final targetAmount = _paymentAmount ?? _estimatedCost;
+          if (targetAmount != null) {
+            _amountController.text = targetAmount.toStringAsFixed(2);
+          }
         });
       }
     } catch (e) {
       debugPrint('Error estimating cost: $e');
     } finally {
       if (mounted) setState(() => _isEstimating = false);
-    }
-  }
-
-  Future<void> _loadUserData() async {
-    final user = _userService.currentUser;
-    if (mounted) {
-      setState(() {
-        if (user.fullName.isNotEmpty) _nameController.text = user.fullName;
-        if (user.email.isNotEmpty) _emailController.text = user.email;
-        if (user.phoneNumber.isNotEmpty) {
-          _phoneController.text = user.phoneNumber;
-        }
-      });
     }
   }
 
@@ -139,60 +156,64 @@ class PaymentScreenState extends State<PaymentScreen> {
   }
 
   Future<void> _handlePayment() async {
-    if (_formKey.currentState!.validate()) {
-      final amount = double.tryParse(_amountController.text);
-      if (amount == null || amount <= 0) {
-        _showErrorDialog('Invalid Amount', 'Please enter a valid amount');
-        return;
-      }
-
-      if (_phoneController.text.isEmpty) {
-        _showErrorDialog(
-          'Missing Info',
-          'Phone number is required for AamarPay',
-        );
-        return;
-      }
-
-      setState(() => _isLoading = true);
-
-      final result = await PaymentService.initiatePayment(
-        amount: amount,
-        customerPhone: _phoneController.text,
-        rideId: widget.rideId,
-        customerName: _nameController.text.isNotEmpty
-            ? _nameController.text
-            : null,
-        customerEmail: _emailController.text.isNotEmpty
-            ? _emailController.text
-            : null,
-        description: widget.description ?? 'Payment via Dromos',
-      );
-
-      setState(() => _isLoading = false);
-
-      if (result['success'] == true && result['paymentUrl'] != null) {
-        final paymentUrl = result['paymentUrl'] as String;
-        final orderId = result['orderId'] as String;
-
-        if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PaymentWebviewScreen(
-                paymentUrl: paymentUrl,
-                orderId: orderId,
-              ),
-            ),
-          );
-        }
-      } else {
-        _showErrorDialog(
-          'Payment Failed',
-          result['error'] ?? 'Could not initiate payment. Please try again.',
-        );
-      }
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
     }
+
+    final amount = double.tryParse(_amountController.text.trim());
+    if (amount == null || amount <= 0) {
+      _showErrorDialog('Invalid Amount', 'Please enter a valid amount');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final initiateResult = await StripePaymentService.initiatePayment(
+      amount: amount,
+      customerPhone: _phoneController.text.trim(),
+      rideId: widget.rideId,
+      customerName: _nameController.text.trim().isEmpty
+          ? null
+          : _nameController.text.trim(),
+      customerEmail: _emailController.text.trim().isEmpty
+          ? null
+          : _emailController.text.trim(),
+      description: widget.description ?? 'Payment via Dromos',
+    );
+
+    if (!mounted) return;
+
+    if (initiateResult['success'] != true ||
+        initiateResult['clientSecret'] == null) {
+      setState(() => _isLoading = false);
+      _showErrorDialog(
+        'Payment Error',
+        initiateResult['error'] ?? 'Could not initiate payment',
+      );
+      return;
+    }
+
+    final paymentResult = await StripePaymentService.processPayment(
+      clientSecret: initiateResult['clientSecret'] as String,
+      publishableKey: initiateResult['publishableKey'] as String?,
+    );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (paymentResult['success'] == true) {
+      Navigator.pushReplacementNamed(
+        context,
+        '/payment/success',
+        arguments: {'orderId': initiateResult['orderId']},
+      );
+      return;
+    }
+
+    _showErrorDialog(
+      'Payment Failed',
+      paymentResult['error'] ?? 'Payment could not be completed',
+    );
   }
 
   void _showErrorDialog(String title, String message) {
@@ -221,16 +242,35 @@ class PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
+  Widget _buildSectionCard({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(8),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    Color pc = ConstColor.primaryColor;
-    Color pbc = ConstColor.primaryBg;
-    Color accentColor = ConstColor.primaryPurple;
+    final pc = ConstColor.primaryColor;
+    final accentColor = ConstColor.primaryPurple;
+    final backgroundColor = ConstColor.primaryBg;
 
-    // If user is the ride initiator, show different UI
     if (_isCheckingRide) {
       return Scaffold(
-        backgroundColor: pbc,
+        backgroundColor: backgroundColor,
         appBar: AppBar(
           title: const Text('Payment'),
           backgroundColor: Colors.transparent,
@@ -248,7 +288,7 @@ class PaymentScreenState extends State<PaymentScreen> {
 
     if (_isInitiator) {
       return Scaffold(
-        backgroundColor: pbc,
+        backgroundColor: backgroundColor,
         appBar: AppBar(
           title: const Text('Ride Payment'),
           backgroundColor: Colors.transparent,
@@ -262,129 +302,78 @@ class PaymentScreenState extends State<PaymentScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Center(
+                _buildSectionCard(
                   child: Column(
                     children: [
-                      Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: ConstColor.primaryPurple.withAlpha(30),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.payment,
-                              size: 48,
-                              color: ConstColor.primaryPurple,
-                            ),
-                          ),
-                          if (_initiatorName != null)
-                            const CircleAvatar(
-                              radius: 12,
-                              backgroundColor: Colors.blue,
-                              child: Icon(
-                                Icons.check,
-                                size: 14,
-                                color: Colors.white,
-                              ),
-                            ),
-                        ],
+                      Icon(
+                        Icons.info_outline,
+                        size: 64,
+                        color: Colors.blue.shade400,
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        _initiatorName != null
-                            ? 'Payment to $_initiatorName'
-                            : 'AamarPay',
+                        'You are the ride initiator',
+                        style: ConstFonts.bold(size: 22, color: pc),
                         textAlign: TextAlign.center,
-                        style: ConstFonts.bold(
-                          size: 22,
-                          color: ConstColor.primaryPurple,
-                        ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 10),
                       Text(
-                        'Secure Ride Sharing Payment',
-                        style: ConstFonts.normal(size: 14, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.account_circle,
-                    size: 48,
-                    color: Colors.blue,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'You are the Ride Initiator',
-                  style: ConstFonts.bold(size: 24, color: Colors.blue),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'As the ride initiator, you will receive payments from other participants. No payment is required from you at this time.',
-                  textAlign: TextAlign.center,
-                  style: ConstFonts.normal(
-                    size: 16,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 32),
-                if (_estimatedCost != null)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green.shade200),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Estimated Total Ride Cost',
-                          style: ConstFonts.normal(
-                            size: 14,
-                            color: Colors.green.shade800,
-                          ),
+                        'Payment will be handled by participants. No payment is required from you right now.',
+                        style: ConstFonts.normal(
+                          size: 14,
+                          color: Colors.grey.shade600,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '৳ ${_estimatedCost!.toStringAsFixed(2)}',
-                          style: ConstFonts.bold(
-                            size: 20,
-                            color: Colors.green.shade800,
+                        textAlign: TextAlign.center,
+                      ),
+                      if (_estimatedCost != null) ...[
+                        const SizedBox(height: 20),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Estimated Total Ride Cost',
+                                style: ConstFonts.normal(
+                                  size: 14,
+                                  color: Colors.green.shade800,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                '৳ ${_estimatedCost!.toStringAsFixed(2)}',
+                                style: ConstFonts.bold(
+                                  size: 22,
+                                  color: Colors.green.shade800,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
-                    ),
+                    ],
                   ),
-                const SizedBox(height: 32),
+                ),
+                const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
+                      backgroundColor: accentColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: const Text(
-                      'Continue',
-                      style: TextStyle(fontSize: 16),
-                    ),
+                    child: const Text('Continue'),
                   ),
                 ),
               ],
@@ -395,7 +384,7 @@ class PaymentScreenState extends State<PaymentScreen> {
     }
 
     return Scaffold(
-      backgroundColor: pbc,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
         title: const Text('Make Payment'),
         backgroundColor: Colors.transparent,
@@ -413,38 +402,47 @@ class PaymentScreenState extends State<PaymentScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(
+                _buildSectionCard(
                   child: Column(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: ConstColor.primaryPurple.withAlpha(30),
+                          gradient: LinearGradient(
+                            colors: [
+                              accentColor.withAlpha(30),
+                              Colors.blue.shade50,
+                            ],
+                          ),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
-                          Icons.payment,
-                          size: 48,
+                          Icons.lock_outline,
+                          size: 44,
                           color: ConstColor.primaryPurple,
                         ),
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'AamarPay',
-                        style: ConstFonts.bold(
-                          size: 24,
-                          color: ConstColor.primaryPurple,
-                        ),
+                        _initiatorName != null
+                            ? 'Payment to $_initiatorName'
+                            : 'Stripe Payment',
+                        textAlign: TextAlign.center,
+                        style: ConstFonts.bold(size: 24, color: pc),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Secure Payment Gateway',
-                        style: ConstFonts.normal(size: 14, color: Colors.grey),
+                        'Secure ride-sharing payment via Stripe',
+                        style: ConstFonts.normal(
+                          size: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
                 if (_isEstimating)
                   const Center(
                     child: CircularProgressIndicator(
@@ -452,179 +450,135 @@ class PaymentScreenState extends State<PaymentScreen> {
                     ),
                   )
                 else if (_estimatedCost != null)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
+                  _buildSectionCard(
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Total Estimated Cost:',
-                              style: ConstFonts.normal(
-                                size: 14,
-                                color: Colors.blue.shade800,
-                              ),
-                            ),
-                            Text(
-                              '৳ ${_estimatedCost!.toStringAsFixed(2)}',
-                              style: ConstFonts.bold(
-                                size: 16,
-                                color: Colors.blue.shade800,
-                              ),
-                            ),
-                          ],
+                        Text(
+                          'Ride Estimate',
+                          style: ConstFonts.bold(size: 16, color: pc),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildSummaryRow(
+                          'Total estimated cost',
+                          '৳ ${_estimatedCost!.toStringAsFixed(2)}',
                         ),
                         const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Your Share (50%):',
-                              style: ConstFonts.normal(
-                                size: 14,
-                                color: Colors.green.shade800,
-                              ),
-                            ),
-                            Text(
-                              '৳ ${_paymentAmount!.toStringAsFixed(2)}',
-                              style: ConstFonts.bold(
-                                size: 16,
-                                color: Colors.green.shade800,
-                              ),
-                            ),
-                          ],
+                        _buildSummaryRow(
+                          'Your share',
+                          '৳ ${(_paymentAmount ?? _estimatedCost ?? 0).toStringAsFixed(2)}',
                         ),
                       ],
                     ),
                   ),
-                const SizedBox(height: 20),
-                TextFormField(
+                if (_estimatedCost != null) const SizedBox(height: 20),
+                _buildTextField(
                   controller: _amountController,
+                  labelText: 'Amount (BDT)',
+                  hintText: '0.00',
+                  onChange: (val) {
+                    _amountController.text = val.replaceAll(
+                      RegExp(r'[^\d.]'),
+                      '',
+                    );
+                  },
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  decoration: InputDecoration(
-                    labelText: 'Amount (BDT)',
-                    hintText: '0.00',
-                    prefixText: '৳ ',
-                    prefixStyle: ConstFonts.normal(size: 16, color: pc),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: accentColor, width: 2),
-                    ),
-                  ),
+                  prefixText: '৳ ',
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter amount';
                     }
-                    final amount = double.tryParse(value);
+                    final amount = double.tryParse(value.trim());
                     if (amount == null || amount <= 0) {
-                      return 'Enter valid amount';
+                      return 'Enter a valid amount';
+                    }
+                    if (amount > _estimatedCost!.toDouble()) {
+                      return 'Amount cannot exceed estimated cost';
                     }
                     return null;
                   },
                 ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
-                    labelText: 'Phone Number',
-                    hintText: '+8801XXXXXXXX',
-                    prefixIcon: Icon(Icons.phone, color: pc),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _nameController,
+                  labelText: 'Full Name',
+                  hintText: 'Your name',
+                  prefixIcon: Icons.person_outline,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Phone number required';
-                    }
-                    if (value.length < 10) {
-                      return 'Enter valid phone number';
+                      return 'Please enter your name';
                     }
                     return null;
                   },
                 ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    labelText: 'Full Name (Optional)',
-                    hintText: 'Your Name',
-                    prefixIcon: Icon(Icons.person, color: pc),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
+                const SizedBox(height: 16),
+                _buildTextField(
                   controller: _emailController,
+                  labelText: 'Email Address',
+                  hintText: 'example@email.com',
                   keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Email (Optional)',
-                    hintText: 'example@email.com',
-                    prefixIcon: Icon(Icons.email, color: pc),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
+                  prefixIcon: Icons.email_outlined,
                   validator: (value) {
-                    if (value != null && value.isNotEmpty) {
-                      final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-                      if (!emailRegex.hasMatch(value)) {
-                        return 'Enter valid email';
-                      }
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+                    if (!emailRegex.hasMatch(value.trim())) {
+                      return 'Enter a valid email';
                     }
                     return null;
                   },
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _phoneController,
+                  labelText: 'Phone Number',
+                  hintText: '+8801XXXXXXXX',
+                  keyboardType: TextInputType.phone,
+                  prefixIcon: Icons.phone_outlined,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your phone number';
+                    }
+                    if (value.trim().length < 10) {
+                      return 'Enter a valid phone number';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handlePayment,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: ConstColor.primaryPurple,
+                      backgroundColor: accentColor,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      elevation: 2,
                     ),
                     child: _isLoading
-                        ? SizedBox(
+                        ? const SizedBox(
                             width: 24,
                             height: 24,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2,
+                              strokeWidth: 2.4,
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                ConstColor.primaryPurple.withAlpha(100),
+                                Colors.white,
                               ),
                             ),
                           )
-                        : Row(
+                        : const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(Icons.lock, size: 20),
-                              SizedBox(width: 8),
+                            children: [
+                              Icon(Icons.payment_outlined),
+                              SizedBox(width: 10),
                               Text(
-                                'Pay Securely via AamarPay',
+                                'Proceed to Payment',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
@@ -634,49 +588,32 @@ class PaymentScreenState extends State<PaymentScreen> {
                           ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const PaymentHistoryScreen(),
-                        ),
-                      );
-                    },
+                    onPressed: () =>
+                        Navigator.pushNamed(context, '/payment/history'),
                     icon: const Icon(Icons.history),
                     label: const Text('View Payment History'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: accentColor,
-                      side: BorderSide(color: accentColor),
+                      foregroundColor: pc,
+                      side: BorderSide(color: pc),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
                 Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.security,
-                        size: 16,
-                        color: Colors.grey.shade600,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Secured by AamarPay',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    'Secured by Stripe',
+                    style: ConstFonts.normal(
+                      size: 12,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ),
               ],
@@ -684,6 +621,56 @@ class PaymentScreenState extends State<PaymentScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required String hintText,
+    TextInputType keyboardType = TextInputType.text,
+    String? prefixText,
+    IconData? prefixIcon,
+    String? Function(String?)? validator,
+    void Function(String)? onChange,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      validator: validator,
+      onChanged: onChange,
+      decoration: InputDecoration(
+        labelText: labelText,
+        hintText: hintText,
+        prefixText: prefixText,
+        prefixIcon: prefixIcon == null
+            ? null
+            : Icon(prefixIcon, color: ConstColor.primaryColor),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(
+            color: ConstColor.primaryPurple,
+            width: 2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: ConstFonts.normal(size: 14, color: Colors.grey.shade700),
+        ),
+        Text(
+          value,
+          style: ConstFonts.bold(size: 16, color: ConstColor.primaryColor),
+        ),
+      ],
     );
   }
 }

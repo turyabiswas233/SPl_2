@@ -40,7 +40,7 @@ class PaymentCancelScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'You have cancelled the payment. No charges were made.',
+                'You have cancelled the payment with Stripe. No charges were made to your account.',
                 style: ConstFonts.normal(size: 16, color: Colors.grey.shade600),
                 textAlign: TextAlign.center,
               ),

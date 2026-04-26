@@ -271,7 +271,6 @@ model Payment {
   customerName         String?
   customerEmail        String?
   customerPhone        String?
-  aamarPayResponse     Json?
   paymentStatus        String?
   paymentTime          DateTime? @db.Timestamptz()
   rideFare             Float?

@@ -36,7 +36,7 @@ class PaymentFailedScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Your payment could not be processed. Please try again.',
+                'Your payment could not be processed with Stripe. Please verify your payment details and try again.',
                 style: ConstFonts.normal(size: 16, color: Colors.grey.shade600),
                 textAlign: TextAlign.center,
               ),

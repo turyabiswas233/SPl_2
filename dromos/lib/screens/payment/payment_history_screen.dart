@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dromos/models/payment_model.dart';
-import 'package:dromos/services/payment_service.dart';
+import 'package:dromos/services/stripe_payment_service.dart';
 import 'package:dromos/services/user_service.dart';
 import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';
@@ -35,7 +35,7 @@ class PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
       return;
     }
 
-    final result = await PaymentService.getPaymentHistory(userId);
+    final result = await StripePaymentService.getPaymentHistory(userId);
 
     if (mounted) {
       setState(() {
@@ -135,7 +135,7 @@ class PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              PaymentService.formatAmount(payment.amount),
+                                              StripePaymentService.formatAmount(payment.amount),
                                               style: ConstFonts.bold(
                                                 size: 22,
                                                 color: accentColor,
@@ -157,7 +157,7 @@ class PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                                           vertical: 6,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: PaymentService.getStatusColor(payment.status)
+                                          color: StripePaymentService.getStatusColor(payment.status)
                                               .withAlpha(30),
                                           borderRadius: BorderRadius.circular(20),
                                         ),
@@ -165,7 +165,7 @@ class PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                                           payment.status.toUpperCase(),
                                           style: ConstFonts.semibold(
                                             size: 11,
-                                            color: PaymentService.getStatusColor(payment.status),
+                                            color: StripePaymentService.getStatusColor(payment.status),
                                           ),
                                         ),
                                       ),
@@ -180,8 +180,13 @@ class PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                                   _buildInfoRow(
                                       Icons.calendar_today,
                                       'Date',
-                                      PaymentService.formatDate(payment.createdAt),
+                                      StripePaymentService.formatDate(payment.createdAt),
                                       Colors.grey.shade600),
+                                  _buildInfoRow(
+                                      Icons.credit_card,
+                                      'Gateway',
+                                      'Stripe',
+                                      Colors.blue.shade700),
                                 ],
                               ),
                             ),

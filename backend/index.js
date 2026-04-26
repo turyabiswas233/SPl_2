@@ -64,8 +64,25 @@ const options = {
 const swaggerSpec = swaggerJsdoc(options);
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const jsonParser = express.json();
+const urlencodedParser = express.urlencoded({ extended: true });
+
+app.use((req, res, next) => {
+  if (req.originalUrl.startsWith("/api/v1/payments/webhook/stripe")) {
+    return next();
+  }
+
+  return jsonParser(req, res, next);
+});
+
+app.use((req, res, next) => {
+  if (req.originalUrl.startsWith("/api/v1/payments/webhook/stripe")) {
+    return next();
+  }
+
+  return urlencodedParser(req, res, next);
+});
+
 app.use(cors(corsOptions));
 
 // Swagger route
