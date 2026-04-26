@@ -406,6 +406,15 @@ const getRideById = async (req, res) => {
 // @query   lng, lat (user's current location)
 const getNearbyRides = async (req, res) => {
   const { gender_filter, min_seats, lng, lat } = req.query;
+  const userLng = parseFloat(lng);
+  const userLat = parseFloat(lat);
+
+  if (isNaN(userLng) || isNaN(userLat)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid coordinates format",
+    });
+  }
 
   try {
     const currentUserId = req.user?.userId;
@@ -415,16 +424,6 @@ const getNearbyRides = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Missing required query parameters: lng, lat",
-      });
-    }
-
-    const userLng = parseFloat(lng);
-    const userLat = parseFloat(lat);
-
-    if (isNaN(userLng) || isNaN(userLat)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid coordinates format",
       });
     }
 
@@ -587,9 +586,6 @@ const getNearbyRides = async (req, res) => {
  *                 type: string
  *                 format: uuid
  *                 description: Initiator user ID
- *               total_fare:
- *                 type: number
- *                 description: Total fare amount
  *     responses:
  *       200:
  *         description: Ride completed successfully
@@ -602,7 +598,7 @@ const getNearbyRides = async (req, res) => {
 // @access  Private
 const completeRide = async (req, res) => {
   const { ride_id } = req.params;
-  const { initiator_id, total_fare } = req.body;
+  const { initiator_id } = req.body;
 
   try {
     // Use transaction for atomic operations
@@ -630,30 +626,10 @@ const completeRide = async (req, res) => {
         where: { rideId: ride_id },
       });
 
-      // Calculate and create fares if total_fare provided
-      if (total_fare) {
-        const splitAmount = (total_fare / participants.length).toFixed(2);
-
-        const farePromises = participants.map((participant) =>
-          tx.fare.create({
-            data: {
-              fareId: uuidv4(),
-              rideId: ride_id,
-              userId: participant.userId,
-              amount: parseFloat(splitAmount),
-            },
-          }),
-        );
-
-        await Promise.all(farePromises);
-      }
-
       // Notify all participants using notification service
       const notificationsList = participants.map((participant) => ({
         userId: participant.userId,
-        messageText: total_fare
-          ? `Trip completed! Your share: $${(total_fare / participants.length).toFixed(2)}. Please rate your co-passengers.`
-          : `Trip completed! Please rate your co-passengers.`,
+        messageText: `Trip completed! Please rate your co-passengers.`,
         rideId: ride_id,
       }));
 
@@ -708,7 +684,12 @@ const startRide = async (req, res) => {
   const { ride_id } = req.params;
   const initiator_id = req.user?.userId;
 
-  console.log("Start ride request for ride_id:", ride_id, "by user:", initiator_id);
+  console.log(
+    "Start ride request for ride_id:",
+    ride_id,
+    "by user:",
+    initiator_id,
+  );
 
   if (!initiator_id) {
     return res.status(401).json({
@@ -754,15 +735,43 @@ const startRide = async (req, res) => {
         throw new Error("Cancelled rides cannot be started.");
       }
 
+      // Get all participants
+      const participants = await tx.rideParticipant.findMany({
+        where: { rideId: ride_id },
+        select: { userId: true },
+      });
+
+      // Check if all participants have paid (except initiator)
+      const participantUserIds = participants
+        .map((p) => p.userId)
+        .filter((id) => id !== initiator_id);
+
+      if (participantUserIds.length > 0) {
+        const payments = await tx.payment.findMany({
+          where: {
+            rideId: ride_id,
+            userId: { in: participantUserIds },
+            status: "completed",
+          },
+          select: { userId: true },
+        });
+
+        const paidUserIds = payments.map((p) => p.userId);
+        const unpaidParticipants = participantUserIds.filter(
+          (id) => !paidUserIds.includes(id),
+        );
+
+        if (unpaidParticipants.length > 0) {
+          throw new Error(
+            "All participants must complete payment before starting the ride.",
+          );
+        }
+      }
+
       // Update ride status to in_progress
       await tx.ride.update({
         where: { rideId: ride_id },
         data: { status: "in_progress" },
-      });
-
-      // Get all participants
-      const participants = await tx.rideParticipant.findMany({
-        where: { rideId: ride_id },
       });
 
       // Notify all participants about ride start using notification service

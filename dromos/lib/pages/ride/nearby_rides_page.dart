@@ -2,6 +2,7 @@ import 'package:dromos/models/nearby_ride_model.dart';
 import 'package:dromos/screens/waiting_screen.dart';
 import 'package:dromos/services/ride_service.dart';
 import 'package:dromos/utils/colors.dart';
+import 'package:dromos/utils/fonts.dart';
 import 'package:dromos/utils/location.dart';
 import 'package:dromos/widgets/ride_chat_bottom_sheet.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +23,10 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
   bool _isLoading = false;
   bool _isLocationEnabled = false;
   String? _errorMessage;
+
+  // Filter state
+  String? _genderFilter; // 'male', 'female', 'other' (for both)
+  int? _minSeats;
 
   @override
   void initState() {
@@ -62,6 +67,8 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
       final rides = await _rideService.fetchNearbyRides(
         lng: location.getLocation().longitude,
         lat: location.getLocation().latitude,
+        genderFilter: _genderFilter,
+        minSeats: _minSeats,
       );
 
       if (mounted) {
@@ -145,6 +152,141 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
     );
   }
 
+  void _showFilterBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Filter Rides',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 20),
+              // Gender Filter
+              const Text(
+                'Preferred Gender',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _genderFilter?? 'other',
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(99.0),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                hint: const Text('Select gender preference'),
+                items: const [
+                  DropdownMenuItem(value: 'male', child: Text('Male')),
+                  DropdownMenuItem(value: 'female', child: Text('Female')),
+                  DropdownMenuItem(value: 'other', child: Text('Both')),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _genderFilter = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 20),
+              // Min Seats Filter
+              const Text(
+                'Minimum Seats',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                initialValue: _minSeats?.toString() ?? '',
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(99.0),
+                  ),
+                  hintText: 'Enter minimum seats (optional)',
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                keyboardType: TextInputType.number,
+                onChanged: (value) {
+                  final intValue = int.tryParse(value);
+                  setState(() {
+                    _minSeats = intValue;
+                  });
+                },
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          _genderFilter = null;
+                          _minSeats = null;
+                        });
+                        this.setState(() {
+                          _genderFilter = null;
+                          _minSeats = null;
+                        });
+                        Navigator.pop(context);
+                        _fetchNearbyRides();
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: ConstColor.primaryPurple),
+                        overlayColor: ConstColor.primaryPurple.withAlpha(20),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(99.0),
+                        ),
+                      ),
+                      child: Text(
+                        'Clear Filters',
+                        style: ConstFonts.semibold(size: 14, color: ConstColor.primaryPurple),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        this.setState(() {
+                          _genderFilter = _genderFilter;
+                          _minSeats = _minSeats;
+                        });
+                        Navigator.pop(context);
+                        _fetchNearbyRides();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ConstColor.primaryPurple,
+                        overlayColor: ConstColor.secondaryColor.withAlpha(20),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(99.0),
+                        ),
+                      ),
+                      child: Text(
+                        'Apply Filters',
+                        style: ConstFonts.semibold(size: 14, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading && _nearbyRides.isEmpty) {
@@ -163,6 +305,12 @@ class _NearbyRidesPageState extends State<NearbyRidesPage> {
             fontWeight: FontWeight.w600,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list, color: Colors.white),
+            onPressed: _showFilterBottomSheet,
+          ),
+        ],
       ),
       body: _isLocationEnabled == false
           ? _buildPermissionError()

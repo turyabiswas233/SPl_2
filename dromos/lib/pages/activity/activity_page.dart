@@ -1,5 +1,6 @@
 import 'package:dromos/models/ride_model.dart';
 import 'package:dromos/pages/ride/map_page.dart';
+import 'package:dromos/screens/payment/payment_screen.dart';
 import 'package:dromos/services/ride_service.dart';
 import 'package:dromos/services/user_service.dart';
 import 'package:dromos/utils/colors.dart';
@@ -726,6 +727,41 @@ class _RideCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                  if (ride.status == 'completed')
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PaymentScreen(
+                              rideId: ride.rideId,
+                              description:
+                                  'Ride share payment for ${ride.startLocation} to ${ride.destinationName}',
+                              startLat: ride.startLat,
+                              startLng: ride.startLng,
+                              destLat: ride.destLat,
+                              destLng: ride.destLng,
+                            ),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange.shade100,
+                        foregroundColor: Colors.orange.shade800,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: EdgeInsets.zero,
+                      ),
+                      child: const Text(
+                        'Pay Share',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
                 ],
               ),
           ],
@@ -1061,17 +1097,22 @@ class _RideCard extends StatelessWidget {
 
       if (result['success'] == true) {
         Navigator.pop(context); // Close OTP dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ride verified successfully!'),
-            backgroundColor: ConstColor.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+
+        // Navigate to payment page after OTP verification
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentScreen(
+              rideId: ride.rideId,
+              description:
+                  'Ride share payment for ${ride.startLocation} to ${ride.destinationName}',
+              startLat: ride.startLat,
+              startLng: ride.startLng,
+              destLat: ride.destLat,
+              destLng: ride.destLng,
             ),
           ),
-        );
-        onRefresh(); // Refresh activity to show in progress
+        ).then((_) => onRefresh()); // Refresh after payment
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

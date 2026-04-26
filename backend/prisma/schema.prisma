@@ -93,7 +93,6 @@ model User {
   sentMessages         Message[]
   ratedBy              Rating[] @relation("rater")
   ratedAgainst         Rating[] @relation("rated")
-  fares                Fare[]
   sosAlerts            SOSAlert[]
   payments             Payment[]
 
@@ -128,7 +127,6 @@ model Ride {
   requests             RideRequest[]
   messages             Message[]
   ratings              Rating[]
-  fares                Fare[]
   sosAlerts            SOSAlert[]
   payments             Payment[]
 
@@ -239,22 +237,6 @@ model Rating {
 
   @@unique([rideId, raterId, ratedUserId])
   @@map("ratings")
-}
-
-// Fare Model
-model Fare {
-  fareId               String @id @db.Uuid
-  rideId               String @db.Uuid
-  userId               String @db.Uuid
-  amount               Decimal @db.Decimal(10, 2)
-  paid                 Boolean @default(false)
-  createdAt            DateTime @default(now()) @db.Timestamptz()
-
-  // Relations
-  ride                 Ride @relation(fields: [rideId], references: [rideId], onDelete: Cascade)
-  user                 User @relation(fields: [userId], references: [userId], onDelete: Cascade)
-
-  @@map("fares")
 }
 
 // SOS Alert Model

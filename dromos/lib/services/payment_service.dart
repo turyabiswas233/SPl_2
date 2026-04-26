@@ -9,6 +9,41 @@ import '../utils/api.dart';
 class PaymentService {
   static String get _baseUrl => Api.url;
 
+  /// Estimate cost for a ride
+  static Future<Map<String, dynamic>> estimateCost({
+    required double startLng,
+    required double startLat,
+    required double destLng,
+    required double destLat,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$_baseUrl/payments/estimate?startLng=$startLng&startLat=$startLat&destLng=$destLng&destLat=$destLat',
+        ),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) {
+        return {
+          'success': true,
+          'distance': data['data']['distance'],
+          'duration': data['data']['duration'],
+          'estimatedCost': data['data']['estimatedCost'],
+          'paymentAmount': data['data']['paymentAmount'],
+          'currency': data['data']['currency'],
+        };
+      }
+      return {'success': false, 'error': data['error'] ?? 'Failed to estimate cost'};
+    } catch (e) {
+      return {'success': false, 'error': 'Network error: ${e.toString()}'};
+    }
+  }
+
   /// Initiate payment and get payment URL
   static Future<Map<String, dynamic>> initiatePayment({
     required double amount,
@@ -23,7 +58,7 @@ class PaymentService {
 
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/payment/initiate'),
+        Uri.parse('$_baseUrl/payments/initiate'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -39,7 +74,7 @@ class PaymentService {
       );
 
       final data = jsonDecode(response.body);
-
+      debugPrint('Initiate Payment Response: ${response.statusCode} -  $data');
       if (data['success'] == true) {
         return {
           'success': true,
@@ -49,6 +84,7 @@ class PaymentService {
           'currency': data['data']['currency'],
         };
       } else {
+        debugPrint('Initiate Payment Error: ${data['error']}');
         return {
           'success': false,
           'error': data['error'] ?? 'Payment initiation failed',
@@ -66,7 +102,7 @@ class PaymentService {
 
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/payment/status/$orderId'),
+        Uri.parse('$_baseUrl/payments/status/$orderId'),
         headers: {'Authorization': 'Bearer $token'},
       );
 
@@ -126,7 +162,7 @@ class PaymentService {
 
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/payment/verify'),
+        Uri.parse('$_baseUrl/payments/verify'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

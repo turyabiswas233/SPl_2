@@ -10,18 +10,18 @@ ThemeData appTheme() {
   Color accentColor = ConstColor.primaryPurple.withAlpha(250);
 
   return ThemeData(
-    useSystemColors: false,
+    useMaterial3: true,
     appBarTheme: AppBarTheme(
       actionsIconTheme: IconThemeData(color: accentColor),
       backgroundColor: Colors.transparent,
       foregroundColor: pc,
       systemOverlayStyle: SystemUiOverlayStyle(
-        statusBarBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
         statusBarIconBrightness: Brightness.light,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
     ),
-    colorScheme: ColorScheme.fromSeed(seedColor: pc),
+    colorScheme: ColorScheme.fromSeed(seedColor: accentColor, secondary: pc),
     fontFamily: GoogleFonts.lexend(fontSize: 14, fontWeight: .w500).fontFamily,
     fontFamilyFallback: GoogleFonts.lexend(fontSize: 14, fontWeight: .w500).fontFamilyFallback,
     textTheme: TextTheme(

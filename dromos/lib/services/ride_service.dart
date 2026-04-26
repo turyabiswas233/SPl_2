@@ -18,11 +18,10 @@ class RideService {
 
   final _userService = UserService();
 
-  Map<String, String> get _authHeaders =>
-      {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${_userService.token}',
-      };
+  Map<String, String> get _authHeaders => {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ${_userService.token}',
+  };
 
   /// Create a new ride session.
   /// Returns [RideModel] on success, throws on failure.
@@ -87,9 +86,7 @@ class RideService {
           final List<dynamic> ridesJson = body['data'] is List
               ? body['data']
               : [body['data']].toList();
-          debugPrint(
-            'fetchMyRides ${ridesJson.toString()} rides',
-          );
+          debugPrint('fetchMyRides ${ridesJson.toString()} rides');
           return ridesJson.map((r) => RideModel.fromJson(r)).toList();
         }
       }
@@ -125,14 +122,33 @@ class RideService {
   /// Fetch nearby rides based on current location.
   /// [lng] - Longitude of current location
   /// [lat] - Latitude of current location
+  /// [genderFilter] - Optional gender filter: 'male', 'female', 'other' (for both)
+  /// [minSeats] - Optional minimum seats required
   /// Returns [List<NearbyRideModel>] of available nearby rides.
   Future<List<NearbyRideModel>> fetchNearbyRides({
     required double lng,
     required double lat,
+    String? genderFilter,
+    int? minSeats,
   }) async {
     try {
+      final queryParams = <String, String>{
+        'lng': lng.toString(),
+        'lat': lat.toString(),
+      };
+
+      if (genderFilter != null && genderFilter.isNotEmpty) {
+        queryParams['gender_filter'] = genderFilter;
+      }
+
+      if (minSeats != null && minSeats > 0) {
+        queryParams['min_seats'] = minSeats.toString();
+      }
+
+      final uri = Uri.parse('${Api.url}/rides/nearby').replace(queryParameters: queryParams);
+
       final response = await http.get(
-        Uri.parse('${Api.url}/rides/nearby?lng=$lng&lat=$lat'),
+        uri,
         headers: _authHeaders,
       );
 
@@ -188,7 +204,7 @@ class RideService {
       return body;
     } catch (e) {
       debugPrint('RideService.cancelRide error: $e');
-      rethrow ;
+      rethrow;
     }
   }
 
@@ -205,6 +221,27 @@ class RideService {
       return body;
     } catch (e) {
       debugPrint('RideService.startRide error: $e');
+      rethrow;
+    }
+  }
+
+  /// Complete a ride by ID.
+  Future<dynamic> completeRide(String rideId, {double? totalFare}) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${Api.url}/rides/$rideId/complete'),
+        headers: _authHeaders,
+        body: jsonEncode({
+          'initiator_id': _userService.userId,
+          'total_fare': totalFare ?? 0.0,
+        }),
+      );
+
+      final body = jsonDecode(response.body);
+      debugPrint('RideService.completeRide body: $body');
+      return body;
+    } catch (e) {
+      debugPrint('RideService.completeRide error: $e');
       rethrow;
     }
   }
@@ -237,10 +274,16 @@ class RideService {
         if (body['success'] == true) {
           return body;
         }
-        throw Exception(body['error'] ?? body['message'] ?? 'Failed to create SOS alert');
+        throw Exception(
+          body['error'] ?? body['message'] ?? 'Failed to create SOS alert',
+        );
       }
 
-      throw Exception(body['error'] ?? body['message'] ?? 'Server error: ${response.statusCode}');
+      throw Exception(
+        body['error'] ??
+            body['message'] ??
+            'Server error: ${response.statusCode}',
+      );
     } catch (e) {
       debugPrint('RideService.createSosAlert error: $e');
       rethrow;
@@ -273,8 +316,7 @@ class RideService {
     try {
       final response = await http.get(
         Uri.parse(
-          '${Api
-              .url}/mapbox/route?startLng=$startLng&startLat=$startLat&destLng=$destLng&destLat=$destLat&steps=false',
+          '${Api.url}/mapbox/route?startLng=$startLng&startLat=$startLat&destLng=$destLng&destLat=$destLat&steps=false',
         ),
         headers: _authHeaders,
       );
@@ -330,10 +372,7 @@ class RideService {
       final response = await http.post(
         Uri.parse('${Api.url}/rides/$rideId/messages'),
         headers: _authHeaders,
-        body: jsonEncode({
-          'sender_id': senderId,
-          'message_text': messageText,
-        }),
+        body: jsonEncode({'sender_id': senderId, 'message_text': messageText}),
       );
 
       debugPrint('sendRideMessage status: ${response.statusCode}');
@@ -344,11 +383,10 @@ class RideService {
         if (body['success'] == true && body['data'] != null) {
           return MessageModel.fromJson(body['data']);
         }
-      }
-      else {
+      } else {
         final body = jsonDecode(response.body);
         throw Exception(
-        body['message'] ?? 'Server error: ${response.statusCode}',
+          body['message'] ?? 'Server error: ${response.statusCode}',
         );
       }
     } catch (e) {
@@ -376,7 +414,7 @@ class RideService {
       );
 
       debugPrint('joinByQr status: ${response.statusCode}');
-      if(response.statusCode != 200) {
+      if (response.statusCode != 200) {
         final body = jsonDecode(response.body);
         throw Exception(
           body['message'] ?? 'Server error: ${response.statusCode}',
@@ -399,15 +437,11 @@ class RideService {
       final response = await http.post(
         Uri.parse('${Api.url}/handshake/verify'),
         headers: _authHeaders,
-        body: jsonEncode({
-          'ride_id': rideId,
-          'user_id': userId,
-          'otp': otp,
-        }),
+        body: jsonEncode({'ride_id': rideId, 'user_id': userId, 'otp': otp}),
       );
 
       debugPrint('verifyRide status: ${response.statusCode}');
-      if(response.statusCode != 200) {
+      if (response.statusCode != 200) {
         final body = jsonDecode(response.body);
         throw Exception(
           body['message'] ?? 'Server error: ${response.statusCode}',
