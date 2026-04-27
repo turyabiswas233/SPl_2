@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:dromos/models/ride_model.dart';
 import 'package:dromos/pages/profile/sos_alert_page.dart';
 import 'package:dromos/services/ride_service.dart';
+import 'package:dromos/services/user_service.dart';
 import 'package:dromos/utils/colors.dart';
 import 'package:dromos/utils/fonts.dart';
 import 'package:dromos/utils/location.dart';
@@ -27,10 +28,18 @@ class _MapSampleState extends State<MapSample> {
   mp.PointAnnotationManager? pointAnnotationManager;
   late List<Cord> coordinates = [];
   final LocationInfo _locationInfo = LocationInfo.getInstance();
+  final UserService _userService = UserService();
+  final RideService _rideService = RideService();
   late DraggableScrollableController _scrollController;
   late double distance = 0;
   late double duration = 0;
   bool isLoading = true;
+  bool _isCompletingRide = false;
+  bool _isRideCompletedLocally = false;
+  DateTime? _lastAutoCompleteAttemptAt;
+
+  static const double _autoCompleteDistanceThresholdMeters = 75;
+  static const Duration _autoCompleteRetryDelay = Duration(seconds: 30);
 
   mp.Position get _currentPosition {
     final cord = _locationInfo.getLocation();
@@ -95,8 +104,7 @@ class _MapSampleState extends State<MapSample> {
     if (currentLocation == null) return;
     try {
       await LocationInfo.resolveCurrentCity(LocationAccuracy.bestForNavigation);
-      RideService rideService = RideService();
-      dynamic routes = await rideService.getRoute(
+      final routes = await _rideService.getRoute(
         startLng: currentLocation.longitude,
         startLat: currentLocation.latitude,
         destLng: widget.ride!.destLng,
@@ -141,6 +149,90 @@ class _MapSampleState extends State<MapSample> {
     }
   }
 
+  Future<bool> _maybeAutoCompleteRide(Position position) async {
+    if (widget.ride == null) return false;
+    if (_isRideCompletedLocally) return true;
+    if (widget.ride!.status != RideStatus.inProgress) return false;
+    if (widget.ride!.initiatorId != _userService.userId) return false;
+    if (_isCompletingRide) return false;
+
+    final lastAttempt = _lastAutoCompleteAttemptAt;
+    if (lastAttempt != null &&
+        DateTime.now().difference(lastAttempt) < _autoCompleteRetryDelay) {
+      return false;
+    }
+
+    final distanceToDestination = Geolocator.distanceBetween(
+      position.latitude,
+      position.longitude,
+      widget.ride!.destLat,
+      widget.ride!.destLng,
+    );
+
+    if (distanceToDestination > _autoCompleteDistanceThresholdMeters) {
+      return false;
+    }
+
+    _isCompletingRide = true;
+    _lastAutoCompleteAttemptAt = DateTime.now();
+
+    try {
+      final result = await _rideService.completeRide(widget.ride!.rideId);
+      final success = result is Map && result['success'] == true;
+
+      if (success) {
+        if (!mounted) return true;
+
+        setState(() {
+          _isRideCompletedLocally = true;
+        });
+
+        await _positionStream?.cancel();
+        _positionStream = null;
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ride completed automatically.'),
+              backgroundColor: ConstColor.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+
+        return true;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              (result is Map ? result['message'] : null) ??
+                  'Failed to complete ride',
+            ),
+            backgroundColor: Colors.red.shade100,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Auto complete error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Auto complete failed: $e'),
+            backgroundColor: Colors.red.shade100,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      _isCompletingRide = false;
+    }
+
+    return false;
+  }
+
   void _startLocationTracking() {
     const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.bestForNavigation,
@@ -151,12 +243,16 @@ class _MapSampleState extends State<MapSample> {
     _positionStream =
         Geolocator.getPositionStream(
           locationSettings: locationSettings,
-        ).listen((Position position) {
+        ).listen((Position position) async {
           // Update your local singleton/model
           _locationInfo.updateLocation(position);
 
-          // Refresh the map route
-          _drawRoute();
+          final completed = await _maybeAutoCompleteRide(position);
+
+          if (!completed) {
+            // Refresh the map route
+            _drawRoute();
+          }
 
           // Optional: Smoothly move the camera to follow the user
           mapboxMap?.flyTo(
@@ -478,9 +574,11 @@ class _MapSampleState extends State<MapSample> {
                             _buildMetaItem(
                               icon: Icons.info_outline,
                               label: 'Status',
-                              value: widget.ride!.status == 'in_progress'
-                                  ? 'Going on'
-                                  : 'Completed',
+                              value: _isRideCompletedLocally ||
+                                      widget.ride!.status ==
+                                          RideStatus.completed
+                                  ? 'Completed'
+                                  : 'Going on',
                             ),
                             _buildMetaItem(
                               icon: Icons.timer,
