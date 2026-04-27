@@ -5,6 +5,13 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
+-keep class com.stripe.android.** { *; }
+-dontwarn com.stripe.android.**
+
+# Specifically for the Push Provisioning classes mentioned in your error
+-keep class com.stripe.android.pushProvisioning.** { *; }
+-dontwarn com.stripe.android.pushProvisioning.**
+
 # Keep class names for ML Kit
 -keep class com.google.mlkit.** { *; }
 -keep class com.google.android.gms.** { *; }
