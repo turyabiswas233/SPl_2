@@ -18,7 +18,7 @@ ThemeData appTheme() {
       systemOverlayStyle: SystemUiOverlayStyle(
         statusBarBrightness: Brightness.light,
         statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarIconBrightness: Brightness.dark,
       ),
     ),
     colorScheme: ColorScheme.fromSeed(seedColor: accentColor, secondary: pc),

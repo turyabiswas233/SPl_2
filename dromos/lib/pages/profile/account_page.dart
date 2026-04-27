@@ -1,4 +1,6 @@
 import 'package:dromos/pages/home/default_page.dart';
+import 'package:dromos/pages/profile/about_page.dart';
+import 'package:dromos/pages/profile/contact_us_page.dart';
 import 'package:dromos/pages/profile/editprofile_page.dart';
 import 'package:dromos/services/app_version.dart';
 import 'package:dromos/services/user_service.dart';
@@ -181,10 +183,16 @@ class _AccountPageState extends State<AccountPage> {
             );
           }),
           _buildListTile('About Us', Icons.info_outline, () {
-            // Navigate to About Us page
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AboutPage()),
+            );
           }),
           _buildListTile('Contact Us', Icons.contact_support_outlined, () {
-            // Navigate to Contact Us page
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ContactUsPage()),
+            );
           }),
           _buildListTile(
             'Logout',

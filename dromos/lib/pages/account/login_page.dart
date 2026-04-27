@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:dart_ipify/dart_ipify.dart';
 import 'package:dromos/utils/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -98,8 +97,6 @@ class _LoginScreenState extends State<LoginPage> {
 
     setState(() => _isLoading = true);
  
-    final localIp = await Ipify.ipv4(); 
- 
     try {
       final body = {
         'email': _emailController.text.trim(),
@@ -163,7 +160,7 @@ class _LoginScreenState extends State<LoginPage> {
       if (!mounted) return;
       _showErrorDialog(
         "Connection Error",
-        "Could not connect to server. Please check your internet connection and try again. Device Ip: $localIp",
+        "Could not connect to server. Please check your internet connection and try again.",
       );
     } finally {
       if (mounted) {
