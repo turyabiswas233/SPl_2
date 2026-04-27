@@ -36,10 +36,10 @@ class _MapSampleState extends State<MapSample> {
   bool isLoading = true;
   bool _isCompletingRide = false;
   bool _isRideCompletedLocally = false;
-  DateTime? _lastAutoCompleteAttemptAt;
+  bool _canCompleteRide = false;
+  bool _hasShownCompletePrompt = false;
 
-  static const double _autoCompleteDistanceThresholdMeters = 75;
-  static const Duration _autoCompleteRetryDelay = Duration(seconds: 30);
+  static const double _completeRadiusMeters = 50;
 
   mp.Position get _currentPosition {
     final cord = _locationInfo.getLocation();
@@ -149,42 +149,20 @@ class _MapSampleState extends State<MapSample> {
     }
   }
 
-  Future<bool> _maybeAutoCompleteRide(Position position) async {
-    if (widget.ride == null) return false;
-    if (_isRideCompletedLocally) return true;
-    if (widget.ride!.status != RideStatus.inProgress) return false;
-    if (widget.ride!.initiatorId != _userService.userId) return false;
-    if (_isCompletingRide) return false;
-
-    final lastAttempt = _lastAutoCompleteAttemptAt;
-    if (lastAttempt != null &&
-        DateTime.now().difference(lastAttempt) < _autoCompleteRetryDelay) {
-      return false;
-    }
-
-    final distanceToDestination = Geolocator.distanceBetween(
-      position.latitude,
-      position.longitude,
-      widget.ride!.destLat,
-      widget.ride!.destLng,
-    );
-
-    if (distanceToDestination > _autoCompleteDistanceThresholdMeters) {
-      return false;
-    }
-
+  Future<void> _completeRide() async {
+    if (widget.ride == null || _isCompletingRide) return;
     _isCompletingRide = true;
-    _lastAutoCompleteAttemptAt = DateTime.now();
 
     try {
       final result = await _rideService.completeRide(widget.ride!.rideId);
       final success = result is Map && result['success'] == true;
 
       if (success) {
-        if (!mounted) return true;
+        if (!mounted) return;
 
         setState(() {
           _isRideCompletedLocally = true;
+          _canCompleteRide = false;
         });
 
         await _positionStream?.cancel();
@@ -193,14 +171,13 @@ class _MapSampleState extends State<MapSample> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Ride completed automatically.'),
+              content: Text('Ride completed successfully.'),
               backgroundColor: ConstColor.success,
               behavior: SnackBarBehavior.floating,
             ),
           );
         }
-
-        return true;
+        return;
       }
 
       if (mounted) {
@@ -216,11 +193,11 @@ class _MapSampleState extends State<MapSample> {
         );
       }
     } catch (e) {
-      debugPrint('Auto complete error: $e');
+      debugPrint('Complete ride error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Auto complete failed: $e'),
+            content: Text('Complete ride failed: $e'),
             backgroundColor: Colors.red.shade100,
             behavior: SnackBarBehavior.floating,
           ),
@@ -229,15 +206,72 @@ class _MapSampleState extends State<MapSample> {
     } finally {
       _isCompletingRide = false;
     }
+  }
 
-    return false;
+  Future<void> _showCompleteRideDialog() async {
+    if (!mounted || widget.ride == null) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Destination reached'),
+        content: const Text(
+          'You are within 50m of destination. Complete the ride now?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Later'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _completeRide();
+            },
+            child: const Text('Complete Ride'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _checkCompletionRadius(Position position) async {
+    if (widget.ride == null || _isRideCompletedLocally) return;
+    if (widget.ride!.status != RideStatus.inProgress) return;
+    if (widget.ride!.initiatorId != _userService.userId) return;
+
+    final distanceToDestination = Geolocator.distanceBetween(
+      position.latitude,
+      position.longitude,
+      widget.ride!.destLat,
+      widget.ride!.destLng,
+    );
+
+    final withinRadius = distanceToDestination <= _completeRadiusMeters;
+    debugPrint(
+      "Distance to destination: ${distanceToDestination.toStringAsFixed(2)} meters",
+    );
+
+    if (withinRadius != _canCompleteRide && mounted) {
+      setState(() {
+        _canCompleteRide = withinRadius;
+      });
+    }
+
+    if (withinRadius && !_hasShownCompletePrompt) {
+      _hasShownCompletePrompt = true;
+      await _showCompleteRideDialog();
+    }
+
+    if (!withinRadius) {
+      _hasShownCompletePrompt = false;
+    }
   }
 
   void _startLocationTracking() {
     const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.bestForNavigation,
       distanceFilter: 5, // Update only if the user moves 10 meters
-      timeLimit: Duration(seconds: 5), // setting a time limit to 5s.
     );
 
     _positionStream =
@@ -247,12 +281,10 @@ class _MapSampleState extends State<MapSample> {
           // Update your local singleton/model
           _locationInfo.updateLocation(position);
 
-          final completed = await _maybeAutoCompleteRide(position);
+          await _checkCompletionRadius(position);
 
-          if (!completed) {
-            // Refresh the map route
-            _drawRoute();
-          }
+          // Refresh the map route
+          _drawRoute();
 
           // Optional: Smoothly move the camera to follow the user
           mapboxMap?.flyTo(
@@ -263,6 +295,15 @@ class _MapSampleState extends State<MapSample> {
             ),
             mp.MapAnimationOptions(duration: 500),
           );
+        }, onError: (error) {
+          debugPrint('Geolocator stream error: $error');
+
+          if (!mounted || _isRideCompletedLocally) return;
+
+          // Restart tracking if the stream is interrupted unexpectedly.
+          _positionStream?.cancel();
+          _positionStream = null;
+          _startLocationTracking();
         });
   }
 
@@ -320,9 +361,7 @@ class _MapSampleState extends State<MapSample> {
     if (mapboxMap != null) {
       mapboxMap!.flyTo(
         mp.CameraOptions(
-          center: mp.Point(
-            coordinates: _currentPosition,
-          ),
+          center: mp.Point(coordinates: _currentPosition),
           zoom: 16,
           pitch: 0,
           bearing: 0,
@@ -364,9 +403,7 @@ class _MapSampleState extends State<MapSample> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(
-                color: ConstColor.primaryBg,
-              ),
+              CircularProgressIndicator(color: ConstColor.primaryBg),
               const SizedBox(height: 20),
               Text(
                 'Loading Map...',
@@ -406,13 +443,9 @@ class _MapSampleState extends State<MapSample> {
                   styleUri: mp.MapboxStyles.DARK,
                   textureView: false,
                   onMapCreated: _onMapCreated,
-                  onScrollListener: (position) {
-                    debugPrint(position.toString());
-                  },
+                 
                   cameraOptions: mp.CameraOptions(
-                    center: mp.Point(
-                      coordinates: _currentPosition,
-                    ),
+                    center: mp.Point(coordinates: _currentPosition),
                     zoom: 16,
                     pitch: 0,
                     bearing: 0,
@@ -569,12 +602,13 @@ class _MapSampleState extends State<MapSample> {
                             _buildMetaItem(
                               icon: Icons.people,
                               label: 'Passengers',
-                                value: '${widget.ride!.maxSeats}',
+                              value: '${widget.ride!.maxSeats}',
                             ),
                             _buildMetaItem(
                               icon: Icons.info_outline,
                               label: 'Status',
-                              value: _isRideCompletedLocally ||
+                              value:
+                                  _isRideCompletedLocally ||
                                       widget.ride!.status ==
                                           RideStatus.completed
                                   ? 'Completed'
@@ -588,6 +622,33 @@ class _MapSampleState extends State<MapSample> {
                           ],
                         ),
                       ),
+                      if (_canCompleteRide && !_isRideCompletedLocally)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _isCompletingRide
+                                  ? null
+                                  : () async {
+                                      await _completeRide();
+                                    },
+                              icon: const Icon(Icons.check_circle_outline),
+                              label: Text(
+                                _isCompletingRide
+                                    ? 'Completing...'
+                                    : 'Complete Ride',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: ConstColor.success,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -611,7 +672,7 @@ class _MapSampleState extends State<MapSample> {
               },
               tooltip: 'SOS Alert',
               backgroundColor: ConstColor.secondaryColor,
-              child: const Icon(Icons.sos, color: ConstColor.error,),
+              child: const Icon(Icons.sos, color: ConstColor.error),
             ),
     );
   }
